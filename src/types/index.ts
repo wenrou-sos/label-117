@@ -243,6 +243,7 @@ export interface Settlement {
   storedValueUsed: number;
   installmentId?: string;
   installmentAmount: number;
+  installmentPeriods?: number;
   primaryPaymentMethod: PaymentMethod;
   cashAmount: number;
   cardAmount: number;

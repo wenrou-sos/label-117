@@ -90,9 +90,11 @@ export default function AppointmentsListPage() {
         const treatment = treatmentTypes.find((t) => t.id === apt.treatmentTypeId);
         const aptSettlements = settlements.filter((s) => s.appointmentId === apt.id);
         const totalPaid = aptSettlements.reduce((sum, s) => sum + s.amountPaid, 0);
+        const totalDiscount = aptSettlements.reduce((sum, s) => sum + s.discountAmount, 0);
+        const receivable = treatment?.price || 0;
         let settlementStatus: SettlementStatus = "unsettled";
         if (aptSettlements.length > 0) {
-          settlementStatus = totalPaid >= (treatment?.price || 0) ? "settled" : "partial";
+          settlementStatus = totalPaid + totalDiscount >= receivable - 0.01 ? "settled" : "partial";
         }
         return {
           ...apt,
@@ -301,18 +303,38 @@ export default function AppointmentsListPage() {
                           {settlementInfo.label}
                         </Badge>
                       </TableCell>
-                      <TableCell>{formatCurrency(apt.treatmentPrice)}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{formatCurrency(apt.treatmentPrice)}</div>
+                        {apt.totalPaid > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            已付：{formatCurrency(apt.totalPaid)}
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            title="结算"
-                            onClick={() => handleSettlement(apt)}
-                            className="text-primary hover:text-primary hover:bg-primary/10"
-                          >
-                            <Receipt className="h-4 w-4" />
-                          </Button>
+                          {apt.status === "completed" && apt.settlementStatus !== "settled" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="结算"
+                              onClick={() => handleSettlement(apt)}
+                              className="text-primary hover:text-primary hover:bg-primary/10"
+                            >
+                              <Receipt className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {apt.settlementStatus === "settled" && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              title="查看结算单"
+                              onClick={() => handleSettlement(apt)}
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <Receipt className="h-4 w-4" />
+                            </Button>
+                          )}
                           <Button variant="ghost" size="icon" title="查看">
                             <Eye className="h-4 w-4" />
                           </Button>

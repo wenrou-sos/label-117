@@ -51,7 +51,7 @@ interface SettlementModalProps {
 const POINTS_VALUE_RATIO = 100;
 
 export function SettlementModal({ open, onOpenChange, appointment, onSettled }: SettlementModalProps) {
-  const { members, staff, clinics, addSettlement, selectedClinicId } = useAppStore();
+  const { members, staff, clinics, installmentPlans, addSettlement, selectedClinicId } = useAppStore();
 
   const [primaryPaymentMethod, setPrimaryPaymentMethod] = useState<PaymentMethod>("cash");
   const [cashAmount, setCashAmount] = useState("");
@@ -62,6 +62,8 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
   const [usePoints, setUsePoints] = useState(false);
   const [pointsUsed, setPointsUsed] = useState("");
   const [useInstallment, setUseInstallment] = useState(false);
+  const [installmentType, setInstallmentType] = useState<"new" | "existing">("new");
+  const [selectedInstallmentId, setSelectedInstallmentId] = useState("");
   const [installmentPeriods, setInstallmentPeriods] = useState("6");
   const [discountAmount, setDiscountAmount] = useState("");
   const [operatorId, setOperatorId] = useState("");
@@ -82,17 +84,31 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
   const totalAmount = treatment?.price || 0;
 
   const discount = Number(discountAmount) || 0;
-  const pointsDeduction = usePoints ? Math.floor((Number(pointsUsed) || 0) / POINTS_VALUE_RATIO) : 0;
+  const pointsUsedNum = Number(pointsUsed) || 0;
+  const pointsDeduction = usePoints ? Math.floor(pointsUsedNum / POINTS_VALUE_RATIO) : 0;
   const storedValueUsed = useStoredValue ? Number(storedValueAmount) || 0 : 0;
 
-  const remainingAfterDeductions = Math.max(0, totalAmount - discount - pointsDeduction - storedValueUsed);
+  const receivableAmount = Math.max(0, totalAmount - discount);
+  const remainingAfterDeductions = Math.max(0, receivableAmount - pointsDeduction - storedValueUsed);
 
   const cash = Number(cashAmount) || 0;
   const card = Number(cardAmount) || 0;
   const wechatAlipay = Number(wechatAlipayAmount) || 0;
 
   const amountPaid = cash + card + wechatAlipay + storedValueUsed + pointsDeduction + (useInstallment ? remainingAfterDeductions : 0);
-  const unpaidAmount = Math.max(0, totalAmount - discount - amountPaid);
+  const unpaidAmount = Math.max(0, receivableAmount - amountPaid);
+
+  const canUseStoredValue = member && member.balance > 0;
+  const canUsePoints = member && member.points >= POINTS_VALUE_RATIO;
+  const maxPointsCanUse = member ? Math.min(member.points, receivableAmount * POINTS_VALUE_RATIO) : 0;
+  const maxStoredValueCanUse = member ? Math.min(member.balance, receivableAmount) : 0;
+
+  const memberInstallments = useMemo(() => {
+    if (!member) return [];
+    return installmentPlans.filter((ip) => ip.memberId === member.id && ip.status === "active");
+  }, [installmentPlans, member]);
+
+  const hasActiveInstallments = memberInstallments.length > 0;
 
   const clinicStaff = useMemo(() => {
     const clinicId = appointment?.clinicId || selectedClinicId;
@@ -110,6 +126,8 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
     setUsePoints(false);
     setPointsUsed("");
     setUseInstallment(false);
+    setInstallmentType("new");
+    setSelectedInstallmentId("");
     setInstallmentPeriods("6");
     setDiscountAmount("");
     setOperatorId(clinicStaff.length > 0 ? clinicStaff[0].id : "");
@@ -152,31 +170,49 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
       alert("请输入支付金额");
       return;
     }
+    if (useStoredValue && storedValueUsed > (member?.balance || 0)) {
+      alert("储值卡余额不足");
+      return;
+    }
+    if (usePoints && pointsUsedNum > (member?.points || 0)) {
+      alert("积分不足");
+      return;
+    }
+    if (useInstallment && installmentType === "existing" && !selectedInstallmentId) {
+      alert("请选择分期计划");
+      return;
+    }
 
-    addSettlement({
-      appointmentId: appointment.id,
-      patientId: appointment.patientId,
-      memberId: member?.id,
-      totalAmount,
-      discountAmount: discount,
-      pointsUsed: usePoints ? Number(pointsUsed) || 0 : 0,
-      pointsDeduction,
-      storedValueUsed,
-      installmentAmount: useInstallment ? remainingAfterDeductions : 0,
-      primaryPaymentMethod,
-      cashAmount: cash,
-      cardAmount: card,
-      wechatAlipayAmount: wechatAlipay,
-      operatorId,
-      clinicId: appointment.clinicId,
-      remark: remark || undefined,
-    });
+    try {
+      addSettlement({
+        appointmentId: appointment.id,
+        patientId: appointment.patientId,
+        memberId: member?.id,
+        totalAmount,
+        discountAmount: discount,
+        pointsUsed: usePoints ? pointsUsedNum : 0,
+        pointsDeduction,
+        storedValueUsed,
+        installmentAmount: useInstallment ? remainingAfterDeductions : 0,
+        installmentId: useInstallment && installmentType === "existing" ? selectedInstallmentId : undefined,
+        installmentPeriods: useInstallment && installmentType === "new" ? Number(installmentPeriods) : undefined,
+        primaryPaymentMethod,
+        cashAmount: cash,
+        cardAmount: card,
+        wechatAlipayAmount: wechatAlipay,
+        operatorId,
+        clinicId: appointment.clinicId,
+        remark: remark || undefined,
+      });
 
-    const newSettlementId = useAppStore.getState().settlements[useAppStore.getState().settlements.length - 1]?.id;
-    if (newSettlementId) {
-      setSettlementId(newSettlementId);
-      setShowReceipt(true);
-      onSettled?.(newSettlementId);
+      const newSettlementId = useAppStore.getState().settlements[useAppStore.getState().settlements.length - 1]?.id;
+      if (newSettlementId) {
+        setSettlementId(newSettlementId);
+        setShowReceipt(true);
+        onSettled?.(newSettlementId);
+      }
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "结算失败");
     }
   };
 
@@ -265,71 +301,116 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
                     <Input
                       type="number"
                       value={discountAmount}
-                      onChange={(e) => setDiscountAmount(e.target.value)}
+                      onChange={(e) => {
+                        const val = Number(e.target.value) || 0;
+                        setDiscountAmount(Math.min(val, totalAmount).toFixed(2));
+                      }}
                       className="w-24 h-7 text-right"
                       min={0}
                       max={totalAmount}
                     />
                   </div>
                 </div>
+                <div className="pt-1 flex items-center justify-between">
+                  <span className="font-medium text-sm">应收金额</span>
+                  <span className="text-lg font-bold text-primary">{formatCurrency(receivableAmount)}</span>
+                </div>
                 {member && (
-                  <div className="flex items-center justify-between text-sm">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={usePoints}
-                        onChange={(e) => setUsePoints(e.target.checked)}
-                        className="rounded"
-                      />
-                      <span>积分抵扣</span>
-                      <span className="text-xs text-muted-foreground">({POINTS_VALUE_RATIO}积分=1元)</span>
-                    </label>
-                    {usePoints && (
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          value={pointsUsed}
-                          onChange={(e) => setPointsUsed(e.target.value)}
-                          className="w-24 h-7 text-right"
-                          min={0}
-                          max={member.points}
+                  <div className="pt-2 border-t">
+                    <div className="flex items-center justify-between text-sm">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={usePoints}
+                          onChange={(e) => {
+                            setUsePoints(e.target.checked);
+                            if (e.target.checked && member) {
+                              setPointsUsed(String(maxPointsCanUse));
+                            } else {
+                              setPointsUsed("");
+                            }
+                          }}
+                          className="rounded"
+                          disabled={!canUsePoints}
                         />
-                        <span className="text-xs text-muted-foreground">积分</span>
-                        <span className="text-destructive text-xs">-¥{pointsDeduction.toFixed(2)}</span>
-                      </div>
+                        <span className={cn(!canUsePoints && "text-muted-foreground")}>积分抵扣</span>
+                        <span className="text-xs text-muted-foreground">({POINTS_VALUE_RATIO}积分=1元)</span>
+                      </label>
+                      {usePoints && (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            value={pointsUsed}
+                            onChange={(e) => {
+                              const val = Number(e.target.value) || 0;
+                              const clamped = Math.min(Math.max(0, val), maxPointsCanUse);
+                              setPointsUsed(String(clamped));
+                            }}
+                            className="w-24 h-7 text-right"
+                            min={0}
+                            max={maxPointsCanUse}
+                          />
+                          <span className="text-xs text-muted-foreground">积分</span>
+                          <span className="text-destructive text-xs">-¥{pointsDeduction.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
+                    {!canUsePoints && member && (
+                      <p className="text-xs text-muted-foreground mt-1 pl-5">积分不足（当前 {member.points} 积分）</p>
                     )}
                   </div>
                 )}
                 {member && (
-                  <div className="flex items-center justify-between text-sm">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={useStoredValue}
-                        onChange={(e) => setUseStoredValue(e.target.checked)}
-                        className="rounded"
-                      />
-                      <span>储值卡扣</span>
-                    </label>
-                    {useStoredValue && (
-                      <div className="flex items-center gap-1">
-                        <Input
-                          type="number"
-                          value={storedValueAmount}
-                          onChange={(e) => setStoredValueAmount(e.target.value)}
-                          className="w-24 h-7 text-right"
-                          min={0}
-                          max={member.balance}
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={useStoredValue}
+                          onChange={(e) => {
+                            setUseStoredValue(e.target.checked);
+                            if (e.target.checked && member) {
+                              const remaining = Math.max(0, receivableAmount - pointsDeduction);
+                              setStoredValueAmount(Math.min(member.balance, remaining).toFixed(2));
+                            } else {
+                              setStoredValueAmount("");
+                            }
+                          }}
+                          className="rounded"
+                          disabled={!canUseStoredValue}
                         />
-                        <span className="text-xs text-muted-foreground">元</span>
-                      </div>
+                        <span className={cn(!canUseStoredValue && "text-muted-foreground")}>储值卡扣</span>
+                      </label>
+                      {useStoredValue && (
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            value={storedValueAmount}
+                            onChange={(e) => {
+                              const val = Number(e.target.value) || 0;
+                              const maxUse = Math.min(member.balance, Math.max(0, receivableAmount - pointsDeduction));
+                              setStoredValueAmount(Math.min(val, maxUse).toFixed(2));
+                            }}
+                            className="w-24 h-7 text-right"
+                            min={0}
+                            max={maxStoredValueCanUse}
+                          />
+                          <span className="text-xs text-muted-foreground">元</span>
+                        </div>
+                      )}
+                    </div>
+                    {!canUseStoredValue && member && (
+                      <p className="text-xs text-muted-foreground mt-1 pl-5">储值卡余额为 0</p>
+                    )}
+                    {useStoredValue && member && (
+                      <p className="text-xs text-muted-foreground mt-1 pl-5">可用余额：{formatCurrency(member.balance)}</p>
                     )}
                   </div>
                 )}
                 <div className="pt-2 border-t flex items-center justify-between">
-                  <span className="font-medium">应付金额</span>
+                  <span className="font-medium">还需支付</span>
                   <span className="text-xl font-bold text-primary">
-                    {formatCurrency(Math.max(0, totalAmount - discount - pointsDeduction))}
+                    {formatCurrency(remainingAfterDeductions)}
                   </span>
                 </div>
               </CardContent>
@@ -430,25 +511,83 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
                 )}
 
                 {useInstallment && (
-                  <div className="space-y-2 p-3 bg-muted/30 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Label className="w-20 text-sm">分期期数</Label>
-                      <Select value={installmentPeriods} onValueChange={setInstallmentPeriods}>
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="3">3期</SelectItem>
-                          <SelectItem value="6">6期</SelectItem>
-                          <SelectItem value="12">12期</SelectItem>
-                          <SelectItem value="24">24期</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      分期总金额：{formatCurrency(remainingAfterDeductions)}
-                      ，每期约 {formatCurrency(remainingAfterDeductions / Number(installmentPeriods || 6))}
-                    </div>
+                  <div className="space-y-3 p-3 bg-muted/30 rounded-lg">
+                    {hasActiveInstallments && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setInstallmentType("new")}
+                          className={cn(
+                            "flex-1 py-2 px-3 rounded-md text-sm border transition-all",
+                            installmentType === "new"
+                              ? "border-primary bg-primary/10 text-primary font-medium"
+                              : "hover:bg-background"
+                          )}
+                        >
+                          新建分期
+                        </button>
+                        <button
+                          onClick={() => setInstallmentType("existing")}
+                          className={cn(
+                            "flex-1 py-2 px-3 rounded-md text-sm border transition-all",
+                            installmentType === "existing"
+                              ? "border-primary bg-primary/10 text-primary font-medium"
+                              : "hover:bg-background"
+                          )}
+                        >
+                          使用已有分期
+                        </button>
+                      </div>
+                    )}
+                    {installmentType === "new" ? (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <Label className="w-20 text-sm">分期期数</Label>
+                          <Select value={installmentPeriods} onValueChange={setInstallmentPeriods}>
+                            <SelectTrigger className="w-32">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="3">3期</SelectItem>
+                              <SelectItem value="6">6期</SelectItem>
+                              <SelectItem value="12">12期</SelectItem>
+                              <SelectItem value="24">24期</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          分期总金额：{formatCurrency(remainingAfterDeductions)}
+                          ，每期约 {formatCurrency(remainingAfterDeductions / Number(installmentPeriods || 6))}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2">
+                          <Label className="w-20 text-sm">选择分期</Label>
+                          <Select value={selectedInstallmentId} onValueChange={setSelectedInstallmentId}>
+                            <SelectTrigger className="flex-1">
+                              <SelectValue placeholder="请选择分期计划" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {memberInstallments.map((ip) => (
+                                <SelectItem key={ip.id} value={ip.id}>
+                                  <div className="flex flex-col">
+                                    <span>{ip.description}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {ip.periods}期 · 剩余{ip.periods - ip.paidPeriods}期 · 每期{formatCurrency(ip.periodAmount)}
+                                    </span>
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {selectedInstallmentId && (
+                          <div className="text-sm text-muted-foreground">
+                            本次金额将追加到选定分期计划中
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -488,15 +627,9 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
             <Card className="bg-primary/5 border-primary/20">
               <CardContent className="p-4 space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">项目原价</span>
-                  <span>{formatCurrency(totalAmount)}</span>
+                  <span className="text-muted-foreground">应收金额</span>
+                  <span>{formatCurrency(receivableAmount)}</span>
                 </div>
-                {discount > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">优惠减免</span>
-                    <span className="text-destructive">-{formatCurrency(discount)}</span>
-                  </div>
-                )}
                 {pointsDeduction > 0 && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">积分抵扣</span>
@@ -509,6 +642,30 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
                     <span className="text-destructive">-{formatCurrency(storedValueUsed)}</span>
                   </div>
                 )}
+                {cash > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">现金支付</span>
+                    <span>{formatCurrency(cash)}</span>
+                  </div>
+                )}
+                {card > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">刷卡支付</span>
+                    <span>{formatCurrency(card)}</span>
+                  </div>
+                )}
+                {wechatAlipay > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">扫码支付</span>
+                    <span>{formatCurrency(wechatAlipay)}</span>
+                  </div>
+                )}
+                {useInstallment && remainingAfterDeductions > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">分期付款</span>
+                    <span>{formatCurrency(remainingAfterDeductions)}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between pt-2 border-t border-primary/20">
                   <span className="font-medium">实付金额</span>
                   <span className="text-2xl font-bold text-primary">
@@ -519,6 +676,11 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-destructive">未付金额</span>
                     <span className="text-destructive font-medium">{formatCurrency(unpaidAmount)}</span>
+                  </div>
+                )}
+                {unpaidAmount <= 0 && amountPaid > 0 && (
+                  <div className="flex items-center justify-end text-sm">
+                    <span className="text-green-600 font-medium">已结清</span>
                   </div>
                 )}
               </CardContent>

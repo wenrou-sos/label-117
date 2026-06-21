@@ -385,11 +385,13 @@ export const useAppStore = create<AppState>((set) => {
           data.pointsDeduction +
           data.installmentAmount;
 
+        const receivableAmount = data.totalAmount - data.discountAmount;
+
         const newSettlement: Settlement = {
           ...data,
           id: generateId("set-"),
           amountPaid,
-          status: amountPaid >= data.totalAmount - data.discountAmount ? "settled" : "partial",
+          status: amountPaid >= receivableAmount - 0.01 ? "settled" : "partial",
           createdAt: new Date().toISOString(),
         };
 
@@ -399,9 +401,13 @@ export const useAppStore = create<AppState>((set) => {
         const newInstallmentPlans = [...state.installmentPlans];
 
         if (data.memberId && data.storedValueUsed > 0) {
+          const member = updatedMembers.find((m) => m.id === data.memberId);
+          if (!member || member.balance < data.storedValueUsed) {
+            throw new Error("储值卡余额不足");
+          }
           updatedMembers = updatedMembers.map((m) => {
             if (m.id !== data.memberId) return m;
-            return { ...m, balance: Math.max(0, m.balance - data.storedValueUsed) };
+            return { ...m, balance: m.balance - data.storedValueUsed };
           });
           newStoredValueTxs.push({
             id: generateId("sv-"),
@@ -416,9 +422,13 @@ export const useAppStore = create<AppState>((set) => {
         }
 
         if (data.memberId && data.pointsUsed > 0) {
+          const member = updatedMembers.find((m) => m.id === data.memberId);
+          if (!member || member.points < data.pointsUsed) {
+            throw new Error("积分不足");
+          }
           updatedMembers = updatedMembers.map((m) => {
             if (m.id !== data.memberId) return m;
-            return { ...m, points: Math.max(0, m.points - data.pointsUsed) };
+            return { ...m, points: m.points - data.pointsUsed };
           });
           newPointsTxs.push({
             id: generateId("pt-"),
@@ -434,24 +444,42 @@ export const useAppStore = create<AppState>((set) => {
 
         if (data.memberId && data.installmentAmount > 0 && data.primaryPaymentMethod === "installment") {
           const apt = state.appointments.find((a) => a.id === data.appointmentId);
-          const newInstallment: InstallmentPlan = {
-            id: generateId("ip-"),
-            memberId: data.memberId,
-            appointmentId: data.appointmentId,
-            totalAmount: data.installmentAmount,
-            periods: 6,
-            periodAmount: Math.ceil((data.installmentAmount / 6) * 100) / 100,
-            paidPeriods: 0,
-            status: "active",
-            startDate: new Date().toISOString().split("T")[0],
-            nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-            description: apt
-              ? `${state.treatmentTypes.find((t) => t.id === apt.treatmentTypeId)?.name || "诊疗项目"}分期`
-              : "诊疗分期",
-            createdAt: new Date().toISOString(),
-          };
-          newInstallmentPlans.push(newInstallment);
-          newSettlement.installmentId = newInstallment.id;
+          if (data.installmentId) {
+            const idx = newInstallmentPlans.findIndex((ip) => ip.id === data.installmentId);
+            if (idx >= 0) {
+              const existingPlan = newInstallmentPlans[idx];
+              const newTotalAmount = existingPlan.totalAmount + data.installmentAmount;
+              const newPeriodAmount = Math.ceil((newTotalAmount / existingPlan.periods) * 100) / 100;
+              newInstallmentPlans[idx] = {
+                ...existingPlan,
+                totalAmount: newTotalAmount,
+                periodAmount: newPeriodAmount,
+                description: `${existingPlan.description}（追加）`,
+              };
+            }
+            newSettlement.installmentId = data.installmentId;
+          } else {
+            const periods = data.installmentPeriods || 6;
+            const periodAmount = Math.ceil((data.installmentAmount / periods) * 100) / 100;
+            const newInstallment: InstallmentPlan = {
+              id: generateId("ip-"),
+              memberId: data.memberId,
+              appointmentId: data.appointmentId,
+              totalAmount: data.installmentAmount,
+              periods,
+              periodAmount,
+              paidPeriods: 0,
+              status: "active",
+              startDate: new Date().toISOString().split("T")[0],
+              nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+              description: apt
+                ? `${state.treatmentTypes.find((t) => t.id === apt.treatmentTypeId)?.name || "诊疗项目"}分期(${periods}期)`
+                : `诊疗分期(${periods}期)`,
+              createdAt: new Date().toISOString(),
+            };
+            newInstallmentPlans.push(newInstallment);
+            newSettlement.installmentId = newInstallment.id;
+          }
         }
 
         return {

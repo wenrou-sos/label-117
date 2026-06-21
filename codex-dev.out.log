@@ -10,3 +10,4 @@
  GET /members/m-006 200 in 1726ms (next.js: 1166ms, application-code: 560ms)
  GET /members/m-006 200 in 160ms (next.js: 13ms, application-code: 147ms)
  GET /appointments/list 200 in 1269ms (next.js: 935ms, application-code: 335ms)
+ GET /appointments/list 200 in 424ms (next.js: 71ms, application-code: 353ms)
