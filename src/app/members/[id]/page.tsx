@@ -180,12 +180,19 @@ export default function MemberDetailPage() {
     const staffMap = new Map(staff.map((s) => [s.id, s.name]));
     const itemMap = new Map(inventoryItems.map((i) => [i.id, i]));
     const aptMap = new Map(appointments.map((a) => [a.id, a]));
-    const today = new Date().toISOString().split("T")[0];
+    const TERMINAL_STATUSES: AppointmentStatus[] = ["completed", "cancelled", "no_show"];
+
+    const resolveDoctor = (directStaffId?: string, aptRefId?: string): string | undefined => {
+      if (directStaffId) return staffMap.get(directStaffId);
+      if (aptRefId) {
+        const apt = aptMap.get(aptRefId);
+        if (apt) return staffMap.get(apt.staffId);
+      }
+      return undefined;
+    };
 
     memberAppointments.forEach((apt) => {
-      const isFuture = apt.date > today;
-      const isCompleted = apt.status === "completed" || apt.status === "cancelled" || apt.status === "no_show";
-      if (isFuture && !isCompleted) return;
+      if (!TERMINAL_STATUSES.includes(apt.status)) return;
       const treatment = treatmentMap.get(apt.treatmentTypeId);
       const treatmentName = treatment?.name || "未知项目";
       const doctorName = staffMap.get(apt.staffId) || "未知医生";
@@ -207,11 +214,7 @@ export default function MemberDetailPage() {
     });
 
     memberStoredValueTxs.forEach((tx) => {
-      let doctorName: string | undefined;
-      if (tx.referenceId) {
-        const apt = aptMap.get(tx.referenceId);
-        if (apt) doctorName = staffMap.get(apt.staffId);
-      }
+      const doctorName = resolveDoctor(tx.staffId, tx.referenceId);
       if (tx.type === "recharge") {
         items.push({
           id: `sv-r-${tx.id}`,
@@ -244,11 +247,7 @@ export default function MemberDetailPage() {
     });
 
     memberPointsTxs.forEach((tx) => {
-      let doctorName: string | undefined;
-      if (tx.referenceId) {
-        const apt = aptMap.get(tx.referenceId);
-        if (apt) doctorName = staffMap.get(apt.staffId);
-      }
+      const doctorName = resolveDoctor(tx.staffId, tx.referenceId);
       if (tx.type === "earn") {
         items.push({
           id: `pt-e-${tx.id}`,
@@ -295,11 +294,7 @@ export default function MemberDetailPage() {
     });
 
     memberConsumeOrders.forEach((co) => {
-      let doctorName: string | undefined;
-      if (co.appointmentId) {
-        const apt = aptMap.get(co.appointmentId);
-        if (apt) doctorName = staffMap.get(apt.staffId);
-      }
+      const doctorName = resolveDoctor(undefined, co.appointmentId);
       const itemsStr = co.items
         .map((item) => `${itemMap.get(item.itemId)?.name || "未知物品"} ×${item.quantity}`)
         .join("、");

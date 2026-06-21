@@ -419,22 +419,22 @@ export const installmentPlans: InstallmentPlan[] = [
 ];
 
 export const pointsTxs: PointsTx[] = [
-  { id: "pt-001", memberId: "m-001", type: "earn", points: 2000, description: "储值卡充值赠送积分", createdAt: "2026-05-10T09:00:00.000Z" },
-  { id: "pt-002", memberId: "m-001", type: "earn", points: 480, description: "消费赠送积分-补牙", referenceId: "apt-001", createdAt: "2026-05-15T14:30:00.000Z" },
-  { id: "pt-003", memberId: "m-002", type: "spend", points: 5000, description: "积分抵扣洗牙费用", createdAt: "2026-05-20T10:00:00.000Z" },
-  { id: "pt-004", memberId: "m-006", type: "earn", points: 9800, description: "消费赠送积分-种植牙", referenceId: "apt-007", createdAt: "2026-06-01T11:00:00.000Z" },
-  { id: "pt-005", memberId: "m-004", type: "earn", points: 1800, description: "消费赠送积分-根管治疗", referenceId: "apt-005", createdAt: "2026-06-15T16:00:00.000Z" },
-  { id: "pt-006", memberId: "m-014", type: "spend", points: 10000, description: "积分兑换电动牙刷", createdAt: "2026-06-10T15:00:00.000Z" },
+  { id: "pt-001", memberId: "m-001", type: "earn", points: 2000, description: "储值卡充值赠送积分", staffId: "staff-009", createdAt: "2026-05-10T09:00:00.000Z" },
+  { id: "pt-002", memberId: "m-001", type: "earn", points: 480, description: "消费赠送积分-补牙", referenceId: "apt-003", staffId: "staff-002", createdAt: "2026-05-15T14:30:00.000Z" },
+  { id: "pt-003", memberId: "m-002", type: "spend", points: 5000, description: "积分抵扣洗牙费用", staffId: "staff-009", createdAt: "2026-05-20T10:00:00.000Z" },
+  { id: "pt-004", memberId: "m-006", type: "earn", points: 9800, description: "消费赠送积分-种植牙", referenceId: "apt-007", staffId: "staff-005", createdAt: "2026-06-01T11:00:00.000Z" },
+  { id: "pt-005", memberId: "m-004", type: "earn", points: 1800, description: "消费赠送积分-根管治疗", referenceId: "apt-005", staffId: "staff-003", createdAt: "2026-06-15T16:00:00.000Z" },
+  { id: "pt-006", memberId: "m-014", type: "spend", points: 10000, description: "积分兑换电动牙刷", staffId: "staff-009", createdAt: "2026-06-10T15:00:00.000Z" },
 ];
 
 export const storedValueTxs: StoredValueTx[] = [
-  { id: "sv-001", memberId: "m-001", amount: 2000, type: "recharge", description: "储值卡充值2000元", createdAt: "2026-05-10T09:00:00.000Z" },
-  { id: "sv-002", memberId: "m-002", amount: 5000, type: "recharge", description: "储值卡充值5000元送500", createdAt: "2026-05-12T10:30:00.000Z" },
-  { id: "sv-003", memberId: "m-006", amount: 10000, type: "recharge", description: "储值卡充值10000元送1500", createdAt: "2026-05-18T14:00:00.000Z" },
-  { id: "sv-004", memberId: "m-006", amount: 9800, type: "consume", description: "消费扣款-种植牙", referenceId: "apt-007", createdAt: "2026-06-01T11:30:00.000Z" },
-  { id: "sv-005", memberId: "m-004", amount: 1800, type: "consume", description: "消费扣款-根管治疗", referenceId: "apt-005", createdAt: "2026-06-15T16:30:00.000Z" },
-  { id: "sv-006", memberId: "m-014", amount: 3000, type: "recharge", description: "储值卡充值3000元", createdAt: "2026-06-12T09:00:00.000Z" },
-  { id: "sv-007", memberId: "m-001", amount: 480, type: "consume", description: "消费扣款-补牙", referenceId: "apt-003", createdAt: "2026-06-16T15:00:00.000Z" },
+  { id: "sv-001", memberId: "m-001", amount: 2000, type: "recharge", description: "储值卡充值2000元", staffId: "staff-009", createdAt: "2026-05-10T09:00:00.000Z" },
+  { id: "sv-002", memberId: "m-002", amount: 5000, type: "recharge", description: "储值卡充值5000元送500", staffId: "staff-009", createdAt: "2026-05-12T10:30:00.000Z" },
+  { id: "sv-003", memberId: "m-006", amount: 10000, type: "recharge", description: "储值卡充值10000元送1500", staffId: "staff-009", createdAt: "2026-05-18T14:00:00.000Z" },
+  { id: "sv-004", memberId: "m-006", amount: 9800, type: "consume", description: "消费扣款-种植牙", referenceId: "apt-007", staffId: "staff-005", createdAt: "2026-06-01T11:30:00.000Z" },
+  { id: "sv-005", memberId: "m-004", amount: 1800, type: "consume", description: "消费扣款-根管治疗", referenceId: "apt-005", staffId: "staff-003", createdAt: "2026-06-15T16:30:00.000Z" },
+  { id: "sv-006", memberId: "m-014", amount: 3000, type: "recharge", description: "储值卡充值3000元", staffId: "staff-009", createdAt: "2026-06-12T09:00:00.000Z" },
+  { id: "sv-007", memberId: "m-001", amount: 480, type: "consume", description: "消费扣款-补牙", referenceId: "apt-003", staffId: "staff-002", createdAt: "2026-06-16T15:00:00.000Z" },
 ];
 
 export const traceCodes: TraceCode[] = [

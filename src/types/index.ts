@@ -212,6 +212,7 @@ export interface PointsTx {
   points: number;
   description: string;
   referenceId?: string;
+  staffId?: string;
   createdAt: string;
 }
 
@@ -222,5 +223,6 @@ export interface StoredValueTx {
   type: "recharge" | "consume";
   description: string;
   referenceId?: string;
+  staffId?: string;
   createdAt: string;
 }
