@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Stethoscope,
+  Bell,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/Button"
@@ -30,6 +31,7 @@ const menuItems: MenuItem[] = [
   { title: "排班管理", icon: Calendar, href: "/schedule" },
   { title: "物资管理", icon: Package, href: "/inventory" },
   { title: "会员管理", icon: Users, href: "/members" },
+  { title: "消息通知", icon: Bell, href: "/notifications" },
   { title: "数据统计", icon: BarChart3, href: "/statistics" },
   { title: "系统设置", icon: Settings, href: "/settings" },
 ]

@@ -2,6 +2,17 @@ export type UserRole = "admin" | "clinic_admin" | "doctor" | "receptionist" | "i
 
 export type AppointmentStatus = "pending" | "confirmed" | "in_progress" | "completed" | "cancelled" | "no_show";
 
+export type NotificationType =
+  | "appointment_new"
+  | "appointment_confirmed"
+  | "appointment_cancelled"
+  | "appointment_completed"
+  | "appointment_reminder"
+  | "settlement_new"
+  | "system";
+
+export type NotificationPriority = "low" | "medium" | "high";
+
 export type ScheduleType = "clinic" | "surgery" | "rest";
 
 export type InventoryCategory = "implant" | "orthodontics" | "anesthesia" | "suture" | "impression" | "other";
@@ -253,5 +264,19 @@ export interface Settlement {
   operatorId?: string;
   clinicId: string;
   remark?: string;
+  createdAt: string;
+}
+
+export interface Notification {
+  id: string;
+  type: NotificationType;
+  priority: NotificationPriority;
+  title: string;
+  content: string;
+  read: boolean;
+  referenceId?: string;
+  referenceType?: "appointment" | "settlement" | "patient";
+  clinicId?: string;
+  staffId?: string;
   createdAt: string;
 }

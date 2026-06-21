@@ -3,7 +3,6 @@
 import * as React from "react"
 import {
   ChevronRight,
-  Bell,
   Building2,
   User,
   LogOut,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/Button"
+import { NotificationBell } from "@/components/NotificationBell"
 import {
   Select,
   SelectContent,
@@ -44,7 +44,6 @@ export function Topbar({
 }: TopbarProps) {
   const [selectedStore, setSelectedStore] = React.useState(stores[0].value)
   const [showUserMenu, setShowUserMenu] = React.useState(false)
-  const [hasNotification] = React.useState(true)
 
   return (
     <header
@@ -97,12 +96,7 @@ export function Topbar({
           </SelectContent>
         </Select>
 
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          {hasNotification && (
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
-          )}
-        </Button>
+        <NotificationBell />
 
         <div className="relative">
           <Button

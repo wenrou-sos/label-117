@@ -37,6 +37,9 @@ import type {
   StoredValueTx,
   AppointmentStatus,
   Settlement,
+  Notification,
+  NotificationType,
+  NotificationPriority,
 } from "@/types";
 
 interface AppState {
@@ -99,6 +102,12 @@ interface AppState {
 
   addClinic: (data: Omit<Clinic, "id" | "createdAt">) => void;
   updateClinic: (id: string, data: Partial<Clinic>) => void;
+
+  notifications: Notification[];
+  addNotification: (data: Omit<Notification, "id" | "createdAt" | "read">) => void;
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
+  clearAllNotifications: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => {
@@ -120,6 +129,7 @@ export const useAppStore = create<AppState>((set) => {
     pointsTxs: mockPointsTxs,
     storedValueTxs: mockStoredValueTxs,
     settlements: [],
+    notifications: [],
     selectedClinicId: null,
     selectedDate: new Date().toISOString().split("T")[0],
 
@@ -127,18 +137,99 @@ export const useAppStore = create<AppState>((set) => {
     setSelectedDate: (date) => set({ selectedDate: date }),
 
     addAppointment: (data) =>
-      set((state) => ({
-        appointments: [
-          ...state.appointments,
-          { ...data, id: generateId("apt-"), createdAt: new Date().toISOString() },
-        ],
-      })),
+      set((state) => {
+        const newApt = { ...data, id: generateId("apt-"), createdAt: new Date().toISOString() };
+        const patient = state.patients.find((p) => p.id === data.patientId);
+        const staff = state.staff.find((s) => s.id === data.staffId);
+        const treatment = state.treatmentTypes.find((t) => t.id === data.treatmentTypeId);
+        const newNotification: Notification = {
+          id: generateId("notif-"),
+          type: "appointment_new",
+          priority: "high",
+          title: "新预约提醒",
+          content: `${patient?.name || "未知患者"} 预约了 ${staff?.name || "未知医生"} 的${treatment?.name || "诊疗项目"}（${data.date} ${data.startTime}）`,
+          read: false,
+          referenceId: newApt.id,
+          referenceType: "appointment",
+          clinicId: data.clinicId,
+          staffId: data.staffId,
+          createdAt: new Date().toISOString(),
+        };
+        return {
+          appointments: [...state.appointments, newApt],
+          notifications: [newNotification, ...state.notifications],
+        };
+      }),
     updateAppointmentStatus: (id, status) =>
-      set((state) => ({
-        appointments: state.appointments.map((a) =>
-          a.id === id ? { ...a, status } : a
-        ),
-      })),
+      set((state) => {
+        const apt = state.appointments.find((a) => a.id === id);
+        if (!apt || apt.status === status) {
+          return {
+            appointments: state.appointments.map((a) =>
+              a.id === id ? { ...a, status } : a
+            ),
+          };
+        }
+        const patient = state.patients.find((p) => p.id === apt.patientId);
+        const staff = state.staff.find((s) => s.id === apt.staffId);
+        const treatment = state.treatmentTypes.find((t) => t.id === apt.treatmentTypeId);
+        let title = "";
+        let type: NotificationType = "system";
+        let priority: NotificationPriority = "medium";
+        switch (status) {
+          case "confirmed":
+            title = "预约已确认";
+            type = "appointment_confirmed";
+            priority = "medium";
+            break;
+          case "cancelled":
+            title = "预约已取消";
+            type = "appointment_cancelled";
+            priority = "high";
+            break;
+          case "completed":
+            title = "预约已完成";
+            type = "appointment_completed";
+            priority = "low";
+            break;
+          case "no_show":
+            title = "患者未到诊";
+            type = "appointment_cancelled";
+            priority = "high";
+            break;
+          case "in_progress":
+            title = "诊疗进行中";
+            type = "appointment_confirmed";
+            priority = "low";
+            break;
+        }
+        if (!title) {
+          return {
+            appointments: state.appointments.map((a) =>
+              a.id === id ? { ...a, status } : a
+            ),
+          };
+        }
+        const newNotification: Notification = {
+          id: generateId("notif-"),
+          type,
+          priority,
+          title,
+          content: `${patient?.name || "未知患者"} 的${treatment?.name || "诊疗项目"}预约（${staff?.name || "未知医生"}，${apt.date} ${apt.startTime}）`,
+          read: false,
+          referenceId: id,
+          referenceType: "appointment",
+          clinicId: apt.clinicId,
+          staffId: apt.staffId,
+          createdAt: new Date().toISOString(),
+        };
+        return {
+          appointments: state.appointments.map((a) =>
+            a.id === id ? { ...a, status } : a
+          ),
+          notifications: [newNotification, ...state.notifications],
+        };
+      }),
     deleteAppointment: (id) =>
       set((state) => ({
         appointments: state.appointments.filter((a) => a.id !== id),
@@ -489,12 +580,32 @@ export const useAppStore = create<AppState>((set) => {
           }
         }
 
+        const patient = state.patients.find((p) => p.id === data.patientId);
+        const apt = state.appointments.find((a) => a.id === data.appointmentId);
+        const treatmentName = apt
+          ? state.treatmentTypes.find((t) => t.id === apt.treatmentTypeId)?.name
+          : "诊疗项目";
+        const newNotification: Notification = {
+          id: generateId("notif-"),
+          type: "settlement_new",
+          priority: "medium",
+          title: newSettlement.status === "settled" ? "新结算单" : "部分结算",
+          content: `${patient?.name || "未知患者"} 的${treatmentName}已结算 ¥${amountPaid.toFixed(2)}`,
+          read: false,
+          referenceId: newSettlement.id,
+          referenceType: "settlement",
+          clinicId: data.clinicId,
+          staffId: data.operatorId,
+          createdAt: new Date().toISOString(),
+        };
+
         return {
           settlements: [...state.settlements, newSettlement],
           members: updatedMembers,
           storedValueTxs: newStoredValueTxs,
           pointsTxs: newPointsTxs,
           installmentPlans: newInstallmentPlans,
+          notifications: [newNotification, ...state.notifications],
         };
       }),
     addInstallmentPlan: (data) =>
@@ -552,5 +663,24 @@ export const useAppStore = create<AppState>((set) => {
           c.id === id ? { ...c, ...data } : c
         ),
       })),
+
+    addNotification: (data) =>
+      set((state) => ({
+        notifications: [
+          { ...data, id: generateId("notif-"), read: false, createdAt: new Date().toISOString() },
+          ...state.notifications,
+        ],
+      })),
+    markNotificationRead: (id) =>
+      set((state) => ({
+        notifications: state.notifications.map((n) =>
+          n.id === id ? { ...n, read: true } : n
+        ),
+      })),
+    markAllNotificationsRead: () =>
+      set((state) => ({
+        notifications: state.notifications.map((n) => ({ ...n, read: true })),
+      })),
+    clearAllNotifications: () => set({ notifications: [] }),
   };
 });
