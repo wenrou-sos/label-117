@@ -22,6 +22,7 @@ import {
   Trash2,
   MailOpen,
   Mail,
+  Stethoscope,
 } from "lucide-react";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { NotificationType, NotificationPriority } from "@/types";
@@ -43,7 +44,7 @@ const typeIconMap: Record<NotificationType, React.ReactNode> = {
   appointment_confirmed: <CheckCheck className="h-5 w-5" />,
   appointment_cancelled: <Scissors className="h-5 w-5" />,
   appointment_completed: <CheckCheck className="h-5 w-5" />,
-  appointment_in_progress: <Scissors className="h-5 w-5" />,
+  appointment_in_progress: <Stethoscope className="h-5 w-5" />,
   appointment_no_show: <AlertCircle className="h-5 w-5" />,
   appointment_reminder: <AlertCircle className="h-5 w-5" />,
   settlement_new: <CreditCard className="h-5 w-5" />,
@@ -77,24 +78,37 @@ const priorityVariantMap: Record<NotificationPriority, "default" | "secondary" |
 export default function NotificationsPage() {
   const {
     notifications,
+    staff,
     markNotificationRead,
-    markAllNotificationsRead,
-    clearAllNotifications,
-    selectedClinicId,
+    markNotificationsReadByIds,
+    clearNotificationsByIds,
     currentUserId,
   } = useAppStore();
 
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [readFilter, setReadFilter] = useState<string>("all");
   const [scopeFilter, setScopeFilter] = useState<string>("mine");
+  const currentUser = useMemo(
+    () => staff.find((member) => member.id === currentUserId),
+    [staff, currentUserId]
+  );
+  const currentUserClinicId = currentUser?.clinicId;
+
+  const allowedNotifications = useMemo(() => {
+    return notifications.filter((n) => {
+      if (n.staffId) {
+        return !!currentUserId && n.staffId === currentUserId;
+      }
+      if (n.clinicId) {
+        return !!currentUserClinicId && n.clinicId === currentUserClinicId;
+      }
+      return true;
+    });
+  }, [notifications, currentUserId, currentUserClinicId]);
 
   const filteredNotifications = useMemo(() => {
-    return notifications.filter((n) => {
-      if (scopeFilter === "mine") {
-        if (n.staffId && currentUserId && n.staffId !== currentUserId) return false;
-        if (selectedClinicId && n.clinicId && n.clinicId !== selectedClinicId) return false;
-      }
-      if (scopeFilter === "clinic" && selectedClinicId && n.clinicId && n.clinicId !== selectedClinicId) {
+    return allowedNotifications.filter((n) => {
+      if (scopeFilter === "clinic" && n.staffId) {
         return false;
       }
       if (typeFilter !== "all" && n.type !== typeFilter) return false;
@@ -102,21 +116,22 @@ export default function NotificationsPage() {
       if (readFilter === "read" && !n.read) return false;
       return true;
     });
-  }, [notifications, typeFilter, readFilter, scopeFilter, selectedClinicId, currentUserId]);
+  }, [allowedNotifications, typeFilter, readFilter, scopeFilter]);
 
-  const visibleNotificationsAll = useMemo(() => {
-    return notifications.filter((n) => {
-      if (n.staffId && currentUserId && n.staffId !== currentUserId) return false;
-      if (selectedClinicId && n.clinicId && n.clinicId !== selectedClinicId) return false;
-      return true;
-    });
-  }, [notifications, selectedClinicId, currentUserId]);
+  const unreadCount = allowedNotifications.filter((n) => !n.read).length;
 
-  const unreadCount = visibleNotificationsAll.filter((n) => !n.read).length;
+  const visibleIds = filteredNotifications.map((n) => n.id);
+  const visibleUnreadCount = filteredNotifications.filter((n) => !n.read).length;
 
-  const handleClearAll = () => {
-    if (confirm("确定要清空所有通知吗？此操作不可恢复。")) {
-      clearAllNotifications();
+  const handleMarkAllVisibleRead = () => {
+    markNotificationsReadByIds(visibleIds);
+  };
+
+  const handleClearVisible = () => {
+    const scopeLabel =
+      scopeFilter === "mine" ? "我的" : scopeFilter === "clinic" ? "本门店" : "全部";
+    if (confirm(`确定要清空当前${scopeLabel}可见的 ${filteredNotifications.length} 条通知吗？此操作不可恢复。`)) {
+      clearNotificationsByIds(visibleIds);
     }
   };
 
@@ -155,8 +170,8 @@ export default function NotificationsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={markAllNotificationsRead}
-            disabled={unreadCount === 0}
+            onClick={handleMarkAllVisibleRead}
+            disabled={visibleUnreadCount === 0}
             className="gap-1"
           >
             <MailOpen className="h-4 w-4" />
@@ -165,8 +180,8 @@ export default function NotificationsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleClearAll}
-            disabled={notifications.length === 0}
+            onClick={handleClearVisible}
+            disabled={filteredNotifications.length === 0}
             className="text-destructive hover:text-destructive gap-1"
           >
             <Trash2 className="h-4 w-4" />
@@ -185,7 +200,6 @@ export default function NotificationsPage() {
               <SelectContent>
                 <SelectItem value="mine">我的通知</SelectItem>
                 <SelectItem value="clinic">本门店</SelectItem>
-                <SelectItem value="all">全部通知</SelectItem>
               </SelectContent>
             </Select>
           </div>

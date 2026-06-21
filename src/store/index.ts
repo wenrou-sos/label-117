@@ -109,7 +109,9 @@ interface AppState {
   addNotification: (data: Omit<Notification, "id" | "createdAt" | "read">) => void;
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
+  markNotificationsReadByIds: (ids: string[]) => void;
   clearAllNotifications: () => void;
+  clearNotificationsByIds: (ids: string[]) => void;
 }
 
 export const useAppStore = create<AppState>((set) => {
@@ -156,7 +158,6 @@ export const useAppStore = create<AppState>((set) => {
           referenceId: newApt.id,
           referenceType: "appointment",
           clinicId: data.clinicId,
-          staffId: data.staffId,
           createdAt: new Date().toISOString(),
         };
         return {
@@ -224,7 +225,10 @@ export const useAppStore = create<AppState>((set) => {
           referenceId: id,
           referenceType: "appointment",
           clinicId: apt.clinicId,
-          staffId: apt.staffId,
+          staffId:
+            type === "appointment_cancelled" || type === "appointment_no_show"
+              ? undefined
+              : apt.staffId,
           createdAt: new Date().toISOString(),
         };
         return {
@@ -685,6 +689,16 @@ export const useAppStore = create<AppState>((set) => {
       set((state) => ({
         notifications: state.notifications.map((n) => ({ ...n, read: true })),
       })),
+    markNotificationsReadByIds: (ids) =>
+      set((state) => ({
+        notifications: state.notifications.map((n) =>
+          ids.includes(n.id) ? { ...n, read: true } : n
+        ),
+      })),
     clearAllNotifications: () => set({ notifications: [] }),
+    clearNotificationsByIds: (ids) =>
+      set((state) => ({
+        notifications: state.notifications.filter((n) => !ids.includes(n.id)),
+      })),
   };
 });

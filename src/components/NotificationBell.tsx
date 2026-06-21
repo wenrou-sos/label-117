@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useAppStore } from "@/store";
-import { Bell, CheckCheck, ChevronRight, Calendar, CreditCard, AlertCircle, Scissors } from "lucide-react";
+import { Bell, CheckCheck, ChevronRight, Calendar, CreditCard, AlertCircle, Scissors, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn, formatDateTime } from "@/lib/utils";
 import Link from "next/link";
@@ -13,7 +13,7 @@ const typeIconMap: Record<NotificationType, React.ReactNode> = {
   appointment_confirmed: <CheckCheck className="h-4 w-4" />,
   appointment_cancelled: <Scissors className="h-4 w-4" />,
   appointment_completed: <CheckCheck className="h-4 w-4" />,
-  appointment_in_progress: <Scissors className="h-4 w-4" />,
+  appointment_in_progress: <Stethoscope className="h-4 w-4" />,
   appointment_no_show: <AlertCircle className="h-4 w-4" />,
   appointment_reminder: <AlertCircle className="h-4 w-4" />,
   settlement_new: <CreditCard className="h-4 w-4" />,
@@ -52,17 +52,22 @@ export function NotificationBell({ className }: NotificationBellProps) {
     staff,
     treatmentTypes,
     markNotificationRead,
-    markAllNotificationsRead,
+    markNotificationsReadByIds,
     addNotification,
-    selectedClinicId,
     currentUserId,
   } = useAppStore();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const remindedRef = useRef<Set<string>>(new Set());
+  const currentUser = staff.find((member) => member.id === currentUserId);
+  const currentUserClinicId = currentUser?.clinicId;
 
   const visibleNotifications = notifications.filter((n) => {
-    if (n.staffId && currentUserId && n.staffId !== currentUserId) return false;
-    if (selectedClinicId && n.clinicId && n.clinicId !== selectedClinicId) return false;
+    if (n.staffId) {
+      return !!currentUserId && n.staffId === currentUserId;
+    }
+    if (n.clinicId) {
+      return !!currentUserClinicId && n.clinicId === currentUserClinicId;
+    }
     return true;
   });
 
@@ -109,7 +114,6 @@ export function NotificationBell({ className }: NotificationBellProps) {
             referenceId: apt.id,
             referenceType: "appointment",
             clinicId: apt.clinicId,
-            staffId: apt.staffId,
           });
           remindedRef.current.add(apt.id);
         }
@@ -127,7 +131,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
 
   const handleMarkAllRead = (e: React.MouseEvent) => {
     e.stopPropagation();
-    markAllNotificationsRead();
+    markNotificationsReadByIds(visibleNotifications.map((n) => n.id));
   };
 
   return (
