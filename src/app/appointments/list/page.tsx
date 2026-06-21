@@ -59,6 +59,7 @@ type EnrichedAppointment = {
   treatmentColor: string;
   settlementStatus: SettlementStatus;
   totalPaid: number;
+  settlementId?: string;
 };
 
 const statusMap: Record<AppointmentStatus, { label: string; variant: "default" | "success" | "warning" | "secondary" | "destructive" }> = {
@@ -80,6 +81,7 @@ export default function AppointmentsListPage() {
   const [endDate, setEndDate] = useState("");
   const [settlementModalOpen, setSettlementModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<EnrichedAppointment | null>(null);
+  const [viewingSettlementId, setViewingSettlementId] = useState<string | null>(null);
 
   const enrichedAppointments = useMemo(() => {
     return appointments
@@ -96,6 +98,7 @@ export default function AppointmentsListPage() {
         if (aptSettlements.length > 0) {
           settlementStatus = totalPaid + totalDiscount >= receivable - 0.01 ? "settled" : "partial";
         }
+        const lastSettlement = aptSettlements.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
         return {
           ...apt,
           patientName: patient?.name || "未知患者",
@@ -107,6 +110,7 @@ export default function AppointmentsListPage() {
           treatmentColor: treatment?.color || "#64748B",
           settlementStatus,
           totalPaid,
+          settlementId: lastSettlement?.id,
         };
       })
       .sort((a, b) => {
@@ -140,6 +144,11 @@ export default function AppointmentsListPage() {
 
   const handleSettlement = (apt: EnrichedAppointment) => {
     setSelectedAppointment(apt);
+    if (apt.settlementStatus === "settled" && apt.settlementId) {
+      setViewingSettlementId(apt.settlementId);
+    } else {
+      setViewingSettlementId(null);
+    }
     setSettlementModalOpen(true);
   };
 
@@ -369,8 +378,12 @@ export default function AppointmentsListPage() {
 
       <SettlementModal
         open={settlementModalOpen}
-        onOpenChange={setSettlementModalOpen}
+        onOpenChange={(v) => {
+          setSettlementModalOpen(v);
+          if (!v) setViewingSettlementId(null);
+        }}
         appointment={selectedAppointment}
+        settlementId={viewingSettlementId}
       />
     </div>
   );

@@ -45,13 +45,14 @@ interface SettlementModalProps {
     treatmentPrice: number;
     clinicName: string;
   } | null;
+  settlementId?: string | null;
   onSettled?: (settlementId: string) => void;
 }
 
 const POINTS_VALUE_RATIO = 100;
 
-export function SettlementModal({ open, onOpenChange, appointment, onSettled }: SettlementModalProps) {
-  const { members, staff, clinics, installmentPlans, addSettlement, selectedClinicId } = useAppStore();
+export function SettlementModal({ open, onOpenChange, appointment, settlementId, onSettled }: SettlementModalProps) {
+  const { members, staff, clinics, installmentPlans, settlements, addSettlement, selectedClinicId } = useAppStore();
 
   const [primaryPaymentMethod, setPrimaryPaymentMethod] = useState<PaymentMethod>("cash");
   const [cashAmount, setCashAmount] = useState("");
@@ -69,12 +70,19 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
   const [operatorId, setOperatorId] = useState("");
   const [remark, setRemark] = useState("");
   const [showReceipt, setShowReceipt] = useState(false);
-  const [settlementId, setSettlementId] = useState<string | null>(null);
+  const [createdSettlementId, setCreatedSettlementId] = useState<string | null>(null);
 
   const member = useMemo(() => {
     if (!appointment) return null;
     return members.find((m) => m.patientId === appointment.patientId) || null;
   }, [members, appointment]);
+
+  const viewSettlement = useMemo(() => {
+    if (!settlementId) return null;
+    return settlements.find((s) => s.id === settlementId) || null;
+  }, [settlements, settlementId]);
+
+  const isViewMode = !!viewSettlement;
 
   const treatment = useMemo(() => {
     if (!appointment) return null;
@@ -133,7 +141,7 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
     setOperatorId(clinicStaff.length > 0 ? clinicStaff[0].id : "");
     setRemark("");
     setShowReceipt(false);
-    setSettlementId(null);
+    setCreatedSettlementId(null);
   }, [clinicStaff]);
 
   useEffect(() => {
@@ -207,7 +215,7 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
 
       const newSettlementId = useAppStore.getState().settlements[useAppStore.getState().settlements.length - 1]?.id;
       if (newSettlementId) {
-        setSettlementId(newSettlementId);
+        setCreatedSettlementId(newSettlementId);
         setShowReceipt(true);
         onSettled?.(newSettlementId);
       }
@@ -220,7 +228,8 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
     window.print();
   };
 
-  if (!appointment || !treatment) return null;
+  if (!appointment) return null;
+  if (!treatment) return null;
 
   const paymentMethodLabels: Record<PaymentMethod, { label: string; icon: typeof Banknote }> = {
     cash: { label: "现金", icon: Banknote },
@@ -230,6 +239,170 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
     points: { label: "积分抵扣", icon: Gift },
     installment: { label: "分期付款", icon: CalendarClock },
   };
+
+  const displaySettlement = viewSettlement;
+  const displaySettlementId = displaySettlement?.id || createdSettlementId;
+  const displayReceipt = isViewMode || showReceipt;
+
+  const renderReceipt = () => {
+    const s = displaySettlement;
+    const rCash = s ? s.cashAmount : cash;
+    const rCard = s ? s.cardAmount : card;
+    const rWechat = s ? s.wechatAlipayAmount : wechatAlipay;
+    const rStoredValue = s ? s.storedValueUsed : storedValueUsed;
+    const rPoints = s ? s.pointsUsed : pointsUsedNum;
+    const rPointsDed = s ? s.pointsDeduction : pointsDeduction;
+    const rDiscount = s ? s.discountAmount : discount;
+    const rTotal = s ? s.totalAmount : totalAmount;
+    const rInstallment = s ? s.installmentAmount : (useInstallment ? remainingAfterDeductions : 0);
+    const rAmountPaid = s ? s.amountPaid : amountPaid;
+    const rOperator = s ? s.operatorId : operatorId;
+    const rRemark = s ? s.remark : remark;
+    const rDate = s ? new Date(s.createdAt) : new Date();
+    const rInstallmentActive = s ? s.primaryPaymentMethod === "installment" && s.installmentAmount > 0 : useInstallment;
+
+    return (
+      <Modal open={displayReceipt} onOpenChange={(v) => {
+        if (isViewMode) {
+          onOpenChange(v);
+        } else {
+          setShowReceipt(v);
+        }
+      }}>
+        <ModalContent className="max-w-md">
+          <ModalHeader>
+            <ModalTitle className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-primary" />
+              结算单
+            </ModalTitle>
+          </ModalHeader>
+          <div className="p-4 space-y-4 print:p-0">
+            <div className="text-center space-y-1">
+              <h3 className="text-lg font-bold">{clinics.find((c) => c.id === appointment.clinicId)?.name || "美齿口腔"}</h3>
+              <p className="text-xs text-muted-foreground">收费结算单</p>
+            </div>
+
+            <div className="border-t border-b border-dashed py-3 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">单号</span>
+                <span className="font-mono">{displaySettlementId}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">日期</span>
+                <span>{formatDateTime(rDate)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">患者</span>
+                <span>{appointment.patientName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">医生</span>
+                <span>{appointment.staffName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">项目</span>
+                <span>{treatment.name}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">项目金额</span>
+                <span>{formatCurrency(rTotal)}</span>
+              </div>
+              {rDiscount > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">优惠减免</span>
+                  <span className="text-destructive">-{formatCurrency(rDiscount)}</span>
+                </div>
+              )}
+              {rPointsDed > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">积分抵扣（{rPoints}积分）</span>
+                  <span className="text-destructive">-{formatCurrency(rPointsDed)}</span>
+                </div>
+              )}
+              {rStoredValue > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">储值卡扣</span>
+                  <span className="text-destructive">-{formatCurrency(rStoredValue)}</span>
+                </div>
+              )}
+              {rCash > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">现金支付</span>
+                  <span>{formatCurrency(rCash)}</span>
+                </div>
+              )}
+              {rCard > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">刷卡支付</span>
+                  <span>{formatCurrency(rCard)}</span>
+                </div>
+              )}
+              {rWechat > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">扫码支付</span>
+                  <span>{formatCurrency(rWechat)}</span>
+                </div>
+              )}
+              {rInstallmentActive && rInstallment > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">分期付款</span>
+                  <span>{formatCurrency(rInstallment)}</span>
+                </div>
+              )}
+              <div className="flex justify-between pt-2 border-t font-medium">
+                <span>实收金额</span>
+                <span className="text-primary text-lg font-bold">{formatCurrency(rAmountPaid)}</span>
+              </div>
+              {s && s.status === "partial" && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-destructive">待付金额</span>
+                  <span className="text-destructive font-medium">{formatCurrency(rTotal - rDiscount - rAmountPaid)}</span>
+                </div>
+              )}
+              {s && s.status === "settled" && (
+                <div className="flex justify-end text-sm">
+                  <span className="text-green-600 font-medium">已结清</span>
+                </div>
+              )}
+            </div>
+
+            {rRemark && (
+              <div className="text-sm text-muted-foreground pt-2 border-t">
+                <p>备注：{rRemark}</p>
+              </div>
+            )}
+
+            <div className="text-center text-xs text-muted-foreground pt-2">
+              <p>操作人：{staff.find((s) => s.id === rOperator)?.name || "-"}</p>
+              <p className="mt-1">谢谢惠顾，欢迎下次光临！</p>
+            </div>
+          </div>
+          <ModalFooter>
+            <Button variant="outline" onClick={() => {
+              if (isViewMode) {
+                onOpenChange(false);
+              } else {
+                setShowReceipt(false);
+              }
+            }}>
+              {isViewMode ? "关闭" : "继续"}
+            </Button>
+            <Button onClick={handlePrintReceipt}>
+              <Receipt className="h-4 w-4" />
+              打印结算单
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    );
+  };
+
+  if (isViewMode) {
+    return renderReceipt();
+  }
 
   return (
     <>
@@ -699,120 +872,7 @@ export function SettlementModal({ open, onOpenChange, appointment, onSettled }: 
         </ModalContent>
       </Modal>
 
-      {showReceipt && settlementId && (
-        <Modal open={showReceipt} onOpenChange={setShowReceipt}>
-          <ModalContent className="max-w-md">
-            <ModalHeader>
-              <ModalTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-primary" />
-                结算单
-              </ModalTitle>
-            </ModalHeader>
-            <div className="p-4 space-y-4 print:p-0">
-              <div className="text-center space-y-1">
-                <h3 className="text-lg font-bold">{clinics.find((c) => c.id === appointment.clinicId)?.name || "美齿口腔"}</h3>
-                <p className="text-xs text-muted-foreground">收费结算单</p>
-              </div>
-
-              <div className="border-t border-b border-dashed py-3 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">单号</span>
-                  <span className="font-mono">{settlementId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">日期</span>
-                  <span>{formatDateTime(new Date())}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">患者</span>
-                  <span>{appointment.patientName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">医生</span>
-                  <span>{appointment.staffName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">项目</span>
-                  <span>{treatment.name}</span>
-                </div>
-              </div>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">项目金额</span>
-                  <span>{formatCurrency(totalAmount)}</span>
-                </div>
-                {discount > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">优惠减免</span>
-                    <span className="text-destructive">-{formatCurrency(discount)}</span>
-                  </div>
-                )}
-                {pointsDeduction > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">积分抵扣</span>
-                    <span className="text-destructive">-{formatCurrency(pointsDeduction)}</span>
-                  </div>
-                )}
-                {storedValueUsed > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">储值卡扣</span>
-                    <span className="text-destructive">-{formatCurrency(storedValueUsed)}</span>
-                  </div>
-                )}
-                {cash > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">现金支付</span>
-                    <span>{formatCurrency(cash)}</span>
-                  </div>
-                )}
-                {card > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">刷卡支付</span>
-                    <span>{formatCurrency(card)}</span>
-                  </div>
-                )}
-                {wechatAlipay > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">扫码支付</span>
-                    <span>{formatCurrency(wechatAlipay)}</span>
-                  </div>
-                )}
-                {useInstallment && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">分期付款</span>
-                    <span>{formatCurrency(remainingAfterDeductions)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between pt-2 border-t font-medium">
-                  <span>实收金额</span>
-                  <span className="text-primary text-lg font-bold">{formatCurrency(amountPaid)}</span>
-                </div>
-              </div>
-
-              {remark && (
-                <div className="text-sm text-muted-foreground pt-2 border-t">
-                  <p>备注：{remark}</p>
-                </div>
-              )}
-
-              <div className="text-center text-xs text-muted-foreground pt-2">
-                <p>操作人：{staff.find((s) => s.id === operatorId)?.name || "-"}</p>
-                <p className="mt-1">谢谢惠顾，欢迎下次光临！</p>
-              </div>
-            </div>
-            <ModalFooter>
-              <Button variant="outline" onClick={() => setShowReceipt(false)}>
-                关闭
-              </Button>
-              <Button onClick={handlePrintReceipt}>
-                <Receipt className="h-4 w-4" />
-                打印结算单
-              </Button>
-            </ModalFooter>
-          </ModalContent>
-        </Modal>
-      )}
+      {renderReceipt()}
     </>
   );
 }

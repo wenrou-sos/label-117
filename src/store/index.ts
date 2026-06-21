@@ -377,6 +377,13 @@ export const useAppStore = create<AppState>((set) => {
       }),
     addSettlement: (data) =>
       set((state) => {
+        const existingSettled = state.settlements.find(
+          (s) => s.appointmentId === data.appointmentId && s.status === "settled"
+        );
+        if (existingSettled) {
+          throw new Error("该预约已结清，不能重复结算");
+        }
+
         const amountPaid =
           data.cashAmount +
           data.cardAmount +
