@@ -39,6 +39,11 @@ import {
   AlertCircle,
   ArrowUpRight,
   ArrowDownRight,
+  Package,
+  History,
+  Activity,
+  PlusCircle,
+  MinusCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -89,7 +94,7 @@ function calculateAge(birthday?: string): number {
 export default function MemberDetailPage() {
   const params = useParams();
   const memberId = params.id as string;
-  const { members, patients, appointments, treatmentTypes, staff, storedValueTxs, pointsTxs, installmentPlans } = useAppStore();
+  const { members, patients, appointments, treatmentTypes, staff, storedValueTxs, pointsTxs, installmentPlans, consumeOrders, inventoryItems } = useAppStore();
 
   const member = useMemo(() => members.find((m) => m.id === memberId), [members, memberId]);
   const patient = useMemo(() => patients.find((p) => p.id === member?.patientId), [patients, member]);
@@ -145,6 +150,144 @@ export default function MemberDetailPage() {
   const getStaffName = (staffId: string) => {
     return staff.find((s) => s.id === staffId)?.name || "未知医生";
   };
+
+  const memberConsumeOrders = useMemo(() => {
+    if (!patient) return [];
+    return consumeOrders
+      .filter((co) => co.patientId === patient.id)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }, [consumeOrders, patient]);
+
+  type TimelineType = "appointment" | "recharge" | "stored_consume" | "points_earn" | "points_spend" | "points_expire" | "consumable";
+
+  interface TimelineItem {
+    id: string;
+    type: TimelineType;
+    timestamp: string;
+    title: string;
+    description?: string;
+    amount?: number;
+    amountType?: "currency" | "points";
+    doctorName?: string;
+    icon: typeof Stethoscope;
+    color: string;
+    bgColor: string;
+  }
+
+  const timelineItems = useMemo((): TimelineItem[] => {
+    const items: TimelineItem[] = [];
+    const treatmentMap = new Map(treatmentTypes.map((t) => [t.id, t.name]));
+    const staffMap = new Map(staff.map((s) => [s.id, s.name]));
+    const itemMap = new Map(inventoryItems.map((i) => [i.id, i.name]));
+
+    memberAppointments.forEach((apt) => {
+      const treatmentName = treatmentMap.get(apt.treatmentTypeId) || "未知项目";
+      const doctorName = staffMap.get(apt.staffId) || "未知医生";
+      const status = appointmentStatusMap[apt.status];
+      items.push({
+        id: `apt-${apt.id}`,
+        type: "appointment",
+        timestamp: apt.startTime.length === 5 ? `${apt.date}T${apt.startTime}:00` : apt.date,
+        title: `${status.label} · ${treatmentName}`,
+        description: `${formatDate(apt.date)} ${formatTime(apt.startTime)} - ${formatTime(apt.endTime)}`,
+        doctorName,
+        icon: Stethoscope,
+        color: "text-primary",
+        bgColor: "bg-primary/10",
+      });
+    });
+
+    memberStoredValueTxs.forEach((tx) => {
+      if (tx.type === "recharge") {
+        items.push({
+          id: `sv-r-${tx.id}`,
+          type: "recharge",
+          timestamp: tx.createdAt,
+          title: "储值充值",
+          description: tx.description,
+          amount: tx.amount,
+          amountType: "currency",
+          icon: PlusCircle,
+          color: "text-success",
+          bgColor: "bg-success/10",
+        });
+      } else {
+        items.push({
+          id: `sv-c-${tx.id}`,
+          type: "stored_consume",
+          timestamp: tx.createdAt,
+          title: "储值消费",
+          description: tx.description,
+          amount: tx.amount,
+          amountType: "currency",
+          icon: MinusCircle,
+          color: "text-amber-600",
+          bgColor: "bg-amber-500/10",
+        });
+      }
+    });
+
+    memberPointsTxs.forEach((tx) => {
+      if (tx.type === "earn") {
+        items.push({
+          id: `pt-e-${tx.id}`,
+          type: "points_earn",
+          timestamp: tx.createdAt,
+          title: "积分获取",
+          description: tx.description,
+          amount: tx.points,
+          amountType: "points",
+          icon: TrendingUp,
+          color: "text-success",
+          bgColor: "bg-success/10",
+        });
+      } else if (tx.type === "spend") {
+        items.push({
+          id: `pt-s-${tx.id}`,
+          type: "points_spend",
+          timestamp: tx.createdAt,
+          title: "积分兑换",
+          description: tx.description,
+          amount: tx.points,
+          amountType: "points",
+          icon: TrendingDown,
+          color: "text-amber-600",
+          bgColor: "bg-amber-500/10",
+        });
+      } else {
+        items.push({
+          id: `pt-ex-${tx.id}`,
+          type: "points_expire",
+          timestamp: tx.createdAt,
+          title: "积分过期",
+          description: tx.description,
+          amount: tx.points,
+          amountType: "points",
+          icon: AlertCircle,
+          color: "text-destructive",
+          bgColor: "bg-destructive/10",
+        });
+      }
+    });
+
+    memberConsumeOrders.forEach((co) => {
+      const itemsStr = co.items
+        .map((item) => `${itemMap.get(item.itemId) || "未知物品"} ×${item.quantity}`)
+        .join("、");
+      items.push({
+        id: `co-${co.id}`,
+        type: "consumable",
+        timestamp: co.createdAt,
+        title: "耗材消耗",
+        description: itemsStr,
+        icon: Package,
+        color: "text-purple-600",
+        bgColor: "bg-purple-500/10",
+      });
+    });
+
+    return items.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }, [memberAppointments, memberStoredValueTxs, memberPointsTxs, memberConsumeOrders, treatmentTypes, staff, inventoryItems]);
 
   if (!member || !patient) {
     return (
@@ -363,6 +506,82 @@ export default function MemberDetailPage() {
                     </CardContent>
                   </Card>
                 </div>
+
+                <Card className="mt-6">
+                  <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <History className="h-4 w-4 text-primary" />
+                      活动时间线
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {timelineItems.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                        <Activity className="h-10 w-10 mb-2 opacity-50" />
+                        <p className="text-sm">暂无活动记录</p>
+                      </div>
+                    ) : (
+                      <div className="relative pl-8">
+                        <div className="absolute left-2.5 top-1 bottom-1 w-px bg-border" />
+                        <div className="space-y-6">
+                          {timelineItems.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                              <div key={item.id} className="relative">
+                                <div
+                                  className={cn(
+                                    "absolute -left-[26px] top-0.5 flex h-5 w-5 items-center justify-center rounded-full border-2 border-background",
+                                    item.bgColor
+                                  )}
+                                >
+                                  <Icon className={cn("h-3 w-3", item.color)} />
+                                </div>
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                      <span className={cn("font-medium text-sm", item.color)}>
+                                        {item.title}
+                                      </span>
+                                      {item.doctorName && (
+                                        <Badge variant="outline" className="gap-1 text-xs font-normal">
+                                          <User className="h-3 w-3" />
+                                          {item.doctorName}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {item.description && (
+                                      <p className="text-sm text-muted-foreground mb-1">
+                                        {item.description}
+                                      </p>
+                                    )}
+                                    <p className="text-xs text-muted-foreground">
+                                      {formatDateTime(item.timestamp)}
+                                    </p>
+                                  </div>
+                                  {item.amount !== undefined && (
+                                    <div className="shrink-0 text-right">
+                                      <p
+                                        className={cn(
+                                          "font-semibold text-sm",
+                                          item.type === "recharge" || item.type === "points_earn" ? "text-success" : "text-destructive"
+                                        )}
+                                      >
+                                        {item.type === "recharge" || item.type === "points_earn" ? "+" : "-"}
+                                        {item.amountType === "currency"
+                                          ? formatCurrency(item.amount)
+                                          : `${item.amount.toLocaleString()} 积分`}
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="appointments" className="mt-0 h-full">
