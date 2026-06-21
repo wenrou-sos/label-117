@@ -176,20 +176,29 @@ export default function MemberDetailPage() {
 
   const timelineItems = useMemo((): TimelineItem[] => {
     const items: TimelineItem[] = [];
-    const treatmentMap = new Map(treatmentTypes.map((t) => [t.id, t.name]));
+    const treatmentMap = new Map(treatmentTypes.map((t) => [t.id, t]));
     const staffMap = new Map(staff.map((s) => [s.id, s.name]));
-    const itemMap = new Map(inventoryItems.map((i) => [i.id, i.name]));
+    const itemMap = new Map(inventoryItems.map((i) => [i.id, i]));
+    const aptMap = new Map(appointments.map((a) => [a.id, a]));
+    const today = new Date().toISOString().split("T")[0];
 
     memberAppointments.forEach((apt) => {
-      const treatmentName = treatmentMap.get(apt.treatmentTypeId) || "未知项目";
+      const isFuture = apt.date > today;
+      const isCompleted = apt.status === "completed" || apt.status === "cancelled" || apt.status === "no_show";
+      if (isFuture && !isCompleted) return;
+      const treatment = treatmentMap.get(apt.treatmentTypeId);
+      const treatmentName = treatment?.name || "未知项目";
       const doctorName = staffMap.get(apt.staffId) || "未知医生";
       const status = appointmentStatusMap[apt.status];
+      const amount = treatment?.price;
       items.push({
         id: `apt-${apt.id}`,
         type: "appointment",
         timestamp: apt.startTime.length === 5 ? `${apt.date}T${apt.startTime}:00` : apt.date,
         title: `${status.label} · ${treatmentName}`,
         description: `${formatDate(apt.date)} ${formatTime(apt.startTime)} - ${formatTime(apt.endTime)}`,
+        amount,
+        amountType: amount !== undefined ? "currency" : undefined,
         doctorName,
         icon: Stethoscope,
         color: "text-primary",
@@ -198,6 +207,11 @@ export default function MemberDetailPage() {
     });
 
     memberStoredValueTxs.forEach((tx) => {
+      let doctorName: string | undefined;
+      if (tx.referenceId) {
+        const apt = aptMap.get(tx.referenceId);
+        if (apt) doctorName = staffMap.get(apt.staffId);
+      }
       if (tx.type === "recharge") {
         items.push({
           id: `sv-r-${tx.id}`,
@@ -207,6 +221,7 @@ export default function MemberDetailPage() {
           description: tx.description,
           amount: tx.amount,
           amountType: "currency",
+          doctorName,
           icon: PlusCircle,
           color: "text-success",
           bgColor: "bg-success/10",
@@ -220,6 +235,7 @@ export default function MemberDetailPage() {
           description: tx.description,
           amount: tx.amount,
           amountType: "currency",
+          doctorName,
           icon: MinusCircle,
           color: "text-amber-600",
           bgColor: "bg-amber-500/10",
@@ -228,6 +244,11 @@ export default function MemberDetailPage() {
     });
 
     memberPointsTxs.forEach((tx) => {
+      let doctorName: string | undefined;
+      if (tx.referenceId) {
+        const apt = aptMap.get(tx.referenceId);
+        if (apt) doctorName = staffMap.get(apt.staffId);
+      }
       if (tx.type === "earn") {
         items.push({
           id: `pt-e-${tx.id}`,
@@ -237,6 +258,7 @@ export default function MemberDetailPage() {
           description: tx.description,
           amount: tx.points,
           amountType: "points",
+          doctorName,
           icon: TrendingUp,
           color: "text-success",
           bgColor: "bg-success/10",
@@ -250,6 +272,7 @@ export default function MemberDetailPage() {
           description: tx.description,
           amount: tx.points,
           amountType: "points",
+          doctorName,
           icon: TrendingDown,
           color: "text-amber-600",
           bgColor: "bg-amber-500/10",
@@ -263,6 +286,7 @@ export default function MemberDetailPage() {
           description: tx.description,
           amount: tx.points,
           amountType: "points",
+          doctorName,
           icon: AlertCircle,
           color: "text-destructive",
           bgColor: "bg-destructive/10",
@@ -271,15 +295,27 @@ export default function MemberDetailPage() {
     });
 
     memberConsumeOrders.forEach((co) => {
+      let doctorName: string | undefined;
+      if (co.appointmentId) {
+        const apt = aptMap.get(co.appointmentId);
+        if (apt) doctorName = staffMap.get(apt.staffId);
+      }
       const itemsStr = co.items
-        .map((item) => `${itemMap.get(item.itemId) || "未知物品"} ×${item.quantity}`)
+        .map((item) => `${itemMap.get(item.itemId)?.name || "未知物品"} ×${item.quantity}`)
         .join("、");
+      const totalAmount = co.items.reduce((sum, item) => {
+        const invItem = itemMap.get(item.itemId);
+        return sum + (invItem?.price || 0) * item.quantity;
+      }, 0);
       items.push({
         id: `co-${co.id}`,
         type: "consumable",
-        timestamp: co.createdAt,
+        timestamp: `${co.consumeDate}T09:00:00.000Z`,
         title: "耗材消耗",
         description: itemsStr,
+        amount: totalAmount,
+        amountType: "currency",
+        doctorName,
         icon: Package,
         color: "text-purple-600",
         bgColor: "bg-purple-500/10",
@@ -287,7 +323,7 @@ export default function MemberDetailPage() {
     });
 
     return items.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  }, [memberAppointments, memberStoredValueTxs, memberPointsTxs, memberConsumeOrders, treatmentTypes, staff, inventoryItems]);
+  }, [memberAppointments, memberStoredValueTxs, memberPointsTxs, memberConsumeOrders, treatmentTypes, staff, inventoryItems, appointments]);
 
   if (!member || !patient) {
     return (
