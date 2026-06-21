@@ -134,6 +134,7 @@ export default function InstallmentPage() {
 
     addInstallmentPlan({
       memberId: formData.memberId,
+      appointmentId: formData.appointmentId || undefined,
       totalAmount: totalAmount,
       periods: selectedPlanPeriods,
       periodAmount: Math.round(periodAmount * 100) / 100,

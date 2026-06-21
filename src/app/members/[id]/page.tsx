@@ -134,6 +134,10 @@ export default function MemberDetailPage() {
     return memberStoredValueTxs.filter((tx) => tx.type === "consume").reduce((sum, tx) => sum + tx.amount, 0);
   }, [memberStoredValueTxs]);
 
+  const totalPointsSpent = useMemo(() => {
+    return memberPointsTxs.filter((tx) => tx.type === "spend" || tx.type === "expire").reduce((sum, tx) => sum + tx.points, 0);
+  }, [memberPointsTxs]);
+
   const getTreatmentName = (treatmentTypeId: string) => {
     return treatmentTypes.find((t) => t.id === treatmentTypeId)?.name || "未知项目";
   };
@@ -622,7 +626,7 @@ export default function MemberDetailPage() {
                           <div>
                             <p className="text-sm text-muted-foreground">累计消费</p>
                             <p className="text-2xl font-bold text-destructive">
-                              {(totalPointsEarned - member.points).toLocaleString()}
+                              {totalPointsSpent.toLocaleString()}
                             </p>
                           </div>
                         </div>

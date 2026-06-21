@@ -98,6 +98,7 @@ export interface InventoryItem {
   currentStock: number;
   safetyStock: number;
   price: number;
+  clinicId: string;
   createdAt: string;
 }
 
@@ -192,6 +193,7 @@ export interface Member {
 export interface InstallmentPlan {
   id: string;
   memberId: string;
+  appointmentId?: string;
   totalAmount: number;
   periods: number;
   periodAmount: number;

@@ -121,7 +121,8 @@ export default function NewAppointmentPage() {
       birthday: newPatientForm.birthday || undefined,
     };
     addPatient(patientData);
-    const newPatient = patients[patients.length - 1];
+    const latestPatients = useAppStore.getState().patients;
+    const newPatient = latestPatients[latestPatients.length - 1];
     if (newPatient) {
       setSelectedPatientId(newPatient.id);
       setPatientSearch(newPatient.name);

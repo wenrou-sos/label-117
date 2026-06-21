@@ -56,13 +56,16 @@ export default function WarningsPage() {
 
   const warningItems = useMemo(() => {
     return inventoryItems
-      .filter((item) => item.currentStock <= item.safetyStock)
+      .filter((item) => {
+        if (clinicFilter !== "all" && item.clinicId !== clinicFilter) return false;
+        return item.currentStock <= item.safetyStock;
+      })
       .sort((a, b) => {
         const ratioA = a.currentStock / Math.max(a.safetyStock, 1);
         const ratioB = b.currentStock / Math.max(b.safetyStock, 1);
         return ratioA - ratioB;
       });
-  }, [inventoryItems]);
+  }, [inventoryItems, clinicFilter]);
 
   const filteredItems = useMemo(() => {
     return warningItems.filter((item) => {
@@ -72,12 +75,16 @@ export default function WarningsPage() {
   }, [warningItems, categoryFilter]);
 
   const categoryStats = useMemo(() => {
-    const stats: Record<string, number> = { all: warningItems.length };
+    const allItems = inventoryItems.filter((item) => {
+      if (clinicFilter !== "all" && item.clinicId !== clinicFilter) return false;
+      return item.currentStock <= item.safetyStock;
+    });
+    const stats: Record<string, number> = { all: allItems.length };
     Object.keys(categoryLabelMap).forEach((key) => {
-      stats[key] = warningItems.filter((i) => i.category === key).length;
+      stats[key] = allItems.filter((i) => i.category === key).length;
     });
     return stats;
-  }, [warningItems]);
+  }, [inventoryItems, clinicFilter]);
 
   const totalSuggestedAmount = useMemo(() => {
     return filteredItems.reduce((sum, item) => sum + getSuggestedPurchase(item) * item.price, 0);
@@ -95,15 +102,33 @@ export default function WarningsPage() {
     }
     setGenerating(true);
     try {
-      const items = filteredItems.map((item) => ({
-        id: "",
-        itemId: item.id,
-        batchNo: `AUTO-${Date.now().toString(36).toUpperCase()}-${item.id.slice(-3)}`,
-        quantity: getSuggestedPurchase(item),
-        unitPrice: item.price,
-        expireDate: "",
-        traceCodes: item.category === "implant" ? [] : undefined,
-      }));
+      const brandMap: Record<string, string> = {
+        "诺贝尔(Nobel)": "NB",
+        "士卓曼(Straumann)": "STM",
+        "奥齿泰(Osstem)": "OST",
+      };
+      const items = filteredItems.map((item) => {
+        const qty = getSuggestedPurchase(item);
+        const traceCodes: string[] | undefined = item.category === "implant" ? [] : undefined;
+        if (item.category === "implant") {
+          const prefix = brandMap[item.brand] || "IMP";
+          const ts = Date.now().toString(36).toUpperCase();
+          for (let i = 0; i < qty; i++) {
+            const seq = String(i + 1).padStart(4, "0");
+            const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
+            traceCodes!.push(`${prefix}-${ts}${seq}-${rand}`);
+          }
+        }
+        return {
+          id: "",
+          itemId: item.id,
+          batchNo: `AUTO-${Date.now().toString(36).toUpperCase()}-${item.id.slice(-3)}`,
+          quantity: qty,
+          unitPrice: item.price,
+          expireDate: "",
+          traceCodes,
+        };
+      });
       addPurchaseOrder({
         supplier: "系统自动生成采购单",
         orderDate: new Date().toISOString().split("T")[0],

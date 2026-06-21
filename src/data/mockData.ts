@@ -345,21 +345,21 @@ export const schedules: Schedule[] = [
 ];
 
 export const inventoryItems: InventoryItem[] = [
-  { id: "inv-001", name: "诺贝尔种植体 Active", category: "implant", brand: "诺贝尔(Nobel)", model: "Active 4.3x13mm", unit: "颗", currentStock: 15, safetyStock: 5, price: 5800, createdAt: "2024-01-20T00:00:00.000Z" },
-  { id: "inv-002", name: "诺贝尔种植体 Replace", category: "implant", brand: "诺贝尔(Nobel)", model: "Replace 4.0x11.5mm", unit: "颗", currentStock: 12, safetyStock: 5, price: 5200, createdAt: "2024-01-20T00:00:00.000Z" },
-  { id: "inv-003", name: "士卓曼种植体 BLX", category: "implant", brand: "士卓曼(Straumann)", model: "BLX 4.1x12mm", unit: "颗", currentStock: 8, safetyStock: 5, price: 6500, createdAt: "2024-02-01T00:00:00.000Z" },
-  { id: "inv-004", name: "士卓曼种植体 TL", category: "implant", brand: "士卓曼(Straumann)", model: "TL 3.3x10mm", unit: "颗", currentStock: 3, safetyStock: 5, price: 5800, createdAt: "2024-02-01T00:00:00.000Z" },
-  { id: "inv-005", name: "奥齿泰种植体 TS III", category: "implant", brand: "奥齿泰(Osstem)", model: "TS III 4.5x13mm", unit: "颗", currentStock: 20, safetyStock: 10, price: 3500, createdAt: "2024-02-15T00:00:00.000Z" },
-  { id: "inv-006", name: "奥齿泰种植体 SS", category: "implant", brand: "奥齿泰(Osstem)", model: "SS 4.0x10mm", unit: "颗", currentStock: 25, safetyStock: 10, price: 3200, createdAt: "2024-02-15T00:00:00.000Z" },
-  { id: "inv-007", name: "金属托槽", category: "orthodontics", brand: "Ormco", model: "Damon Q 标准", unit: "副", currentStock: 30, safetyStock: 10, price: 2800, createdAt: "2024-03-01T00:00:00.000Z" },
-  { id: "inv-008", name: "陶瓷托槽", category: "orthodontics", brand: "3M", model: "Clarity ADVANCED", unit: "副", currentStock: 18, safetyStock: 8, price: 4500, createdAt: "2024-03-01T00:00:00.000Z" },
-  { id: "inv-009", name: "隐形牙套", category: "orthodontics", brand: "时代天使", model: "标准版", unit: "副", currentStock: 12, safetyStock: 5, price: 18000, createdAt: "2024-03-10T00:00:00.000Z" },
-  { id: "inv-010", name: "盐酸阿替卡因注射液", category: "anesthesia", brand: "碧兰", model: "1.7ml/支", unit: "支", currentStock: 200, safetyStock: 50, price: 25, createdAt: "2024-03-15T00:00:00.000Z" },
-  { id: "inv-011", name: "利多卡因注射液", category: "anesthesia", brand: "上海旭东海普", model: "5ml/支", unit: "支", currentStock: 150, safetyStock: 50, price: 8, createdAt: "2024-03-15T00:00:00.000Z" },
-  { id: "inv-012", name: "可吸收缝合线", category: "suture", brand: "强生", model: "4-0  Vicryl", unit: "包", currentStock: 45, safetyStock: 20, price: 65, createdAt: "2024-04-01T00:00:00.000Z" },
-  { id: "inv-013", name: "丝线缝合线", category: "suture", brand: "强生", model: "3-0  Silk", unit: "包", currentStock: 60, safetyStock: 20, price: 15, createdAt: "2024-04-01T00:00:00.000Z" },
-  { id: "inv-014", name: "硅橡胶印模材料", category: "impression", brand: "3M ESPE", model: "Imprint 4", unit: "盒", currentStock: 10, safetyStock: 5, price: 380, createdAt: "2024-04-10T00:00:00.000Z" },
-  { id: "inv-015", name: "藻酸盐印模材料", category: "impression", brand: "登士柏", model: " Jeltrate Plus", unit: "袋", currentStock: 2, safetyStock: 10, price: 85, createdAt: "2024-04-10T00:00:00.000Z" },
+  { id: "inv-001", name: "诺贝尔种植体 Active", category: "implant", brand: "诺贝尔(Nobel)", model: "Active 4.3x13mm", unit: "颗", currentStock: 15, safetyStock: 5, price: 5800, clinicId: "clinic-001", createdAt: "2024-01-20T00:00:00.000Z" },
+  { id: "inv-002", name: "诺贝尔种植体 Replace", category: "implant", brand: "诺贝尔(Nobel)", model: "Replace 4.0x11.5mm", unit: "颗", currentStock: 12, safetyStock: 5, price: 5200, clinicId: "clinic-001", createdAt: "2024-01-20T00:00:00.000Z" },
+  { id: "inv-003", name: "士卓曼种植体 BLX", category: "implant", brand: "士卓曼(Straumann)", model: "BLX 4.1x12mm", unit: "颗", currentStock: 8, safetyStock: 5, price: 6500, clinicId: "clinic-001", createdAt: "2024-02-01T00:00:00.000Z" },
+  { id: "inv-004", name: "士卓曼种植体 TL", category: "implant", brand: "士卓曼(Straumann)", model: "TL 3.3x10mm", unit: "颗", currentStock: 3, safetyStock: 5, price: 5800, clinicId: "clinic-002", createdAt: "2024-02-01T00:00:00.000Z" },
+  { id: "inv-005", name: "奥齿泰种植体 TS III", category: "implant", brand: "奥齿泰(Osstem)", model: "TS III 4.5x13mm", unit: "颗", currentStock: 20, safetyStock: 10, price: 3500, clinicId: "clinic-002", createdAt: "2024-02-15T00:00:00.000Z" },
+  { id: "inv-006", name: "奥齿泰种植体 SS", category: "implant", brand: "奥齿泰(Osstem)", model: "SS 4.0x10mm", unit: "颗", currentStock: 25, safetyStock: 10, price: 3200, clinicId: "clinic-002", createdAt: "2024-02-15T00:00:00.000Z" },
+  { id: "inv-007", name: "金属托槽", category: "orthodontics", brand: "Ormco", model: "Damon Q 标准", unit: "副", currentStock: 30, safetyStock: 10, price: 2800, clinicId: "clinic-001", createdAt: "2024-03-01T00:00:00.000Z" },
+  { id: "inv-008", name: "陶瓷托槽", category: "orthodontics", brand: "3M", model: "Clarity ADVANCED", unit: "副", currentStock: 18, safetyStock: 8, price: 4500, clinicId: "clinic-002", createdAt: "2024-03-01T00:00:00.000Z" },
+  { id: "inv-009", name: "隐形牙套", category: "orthodontics", brand: "时代天使", model: "标准版", unit: "副", currentStock: 12, safetyStock: 5, price: 18000, clinicId: "clinic-003", createdAt: "2024-03-10T00:00:00.000Z" },
+  { id: "inv-010", name: "盐酸阿替卡因注射液", category: "anesthesia", brand: "碧兰", model: "1.7ml/支", unit: "支", currentStock: 200, safetyStock: 50, price: 25, clinicId: "clinic-001", createdAt: "2024-03-15T00:00:00.000Z" },
+  { id: "inv-011", name: "利多卡因注射液", category: "anesthesia", brand: "上海旭东海普", model: "5ml/支", unit: "支", currentStock: 150, safetyStock: 50, price: 8, clinicId: "clinic-003", createdAt: "2024-03-15T00:00:00.000Z" },
+  { id: "inv-012", name: "可吸收缝合线", category: "suture", brand: "强生", model: "4-0  Vicryl", unit: "包", currentStock: 45, safetyStock: 20, price: 65, clinicId: "clinic-001", createdAt: "2024-04-01T00:00:00.000Z" },
+  { id: "inv-013", name: "丝线缝合线", category: "suture", brand: "强生", model: "3-0  Silk", unit: "包", currentStock: 60, safetyStock: 20, price: 15, clinicId: "clinic-002", createdAt: "2024-04-01T00:00:00.000Z" },
+  { id: "inv-014", name: "硅橡胶印模材料", category: "impression", brand: "3M ESPE", model: "Imprint 4", unit: "盒", currentStock: 10, safetyStock: 5, price: 380, clinicId: "clinic-003", createdAt: "2024-04-10T00:00:00.000Z" },
+  { id: "inv-015", name: "藻酸盐印模材料", category: "impression", brand: "登士柏", model: " Jeltrate Plus", unit: "袋", currentStock: 2, safetyStock: 10, price: 85, clinicId: "clinic-003", createdAt: "2024-04-10T00:00:00.000Z" },
 ];
 
 export const inventoryBatches: InventoryBatch[] = [
