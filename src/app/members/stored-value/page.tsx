@@ -33,7 +33,16 @@ import {
   ArrowDownRight,
   User,
   Plus,
+  Stethoscope,
+  MapPin,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/Select";
 import Link from "next/link";
 import type { MemberLevel } from "@/types";
 import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
@@ -53,13 +62,19 @@ const levelLabelMap: Record<MemberLevel, string> = {
 };
 
 export default function StoredValuePage() {
-  const { members, patients, storedValueTxs, addStoredValueTx, addPointsTx } = useAppStore();
+  const { members, patients, staff, clinics, storedValueTxs, addStoredValueTx, addPointsTx, selectedClinicId } = useAppStore();
   const [searchKeyword, setSearchKeyword] = useState("");
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState("");
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingRecharge, setPendingRecharge] = useState<{ amount: number; bonus: number; points: number } | null>(null);
+  const [clinicId, setClinicId] = useState<string>(selectedClinicId || (clinics.length > 0 ? clinics[0].id : ""));
+  const [staffId, setStaffId] = useState<string>("");
+
+  const filteredStaff = useMemo(() => {
+    return staff.filter((s) => s.clinicId === clinicId);
+  }, [staff, clinicId]);
 
   const memberWithPatients = useMemo(() => {
     return members.map((m) => ({
@@ -118,12 +133,17 @@ export default function StoredValuePage() {
 
   const handleConfirmRecharge = () => {
     if (!selectedMember || !pendingRecharge) return;
+    if (!staffId) {
+      alert("请选择操作医生");
+      return;
+    }
 
     addStoredValueTx({
       memberId: selectedMember.id,
       amount: pendingRecharge.amount + pendingRecharge.bonus,
       type: "recharge",
       description: `储值卡充值${pendingRecharge.amount}元${pendingRecharge.bonus > 0 ? `送${pendingRecharge.bonus}元` : ""}`,
+      staffId,
     });
 
     if (pendingRecharge.points > 0) {
@@ -132,6 +152,7 @@ export default function StoredValuePage() {
         type: "earn",
         points: pendingRecharge.points,
         description: `储值卡充值赠送积分`,
+        staffId,
       });
     }
 
@@ -141,7 +162,7 @@ export default function StoredValuePage() {
     setPendingRecharge(null);
   };
 
-  const canRecharge = selectedMember && pendingRecharge && pendingRecharge.amount > 0;
+  const canRecharge = selectedMember && pendingRecharge && pendingRecharge.amount > 0 && staffId;
 
   return (
     <div className="flex flex-col h-full gap-4">
@@ -225,6 +246,60 @@ export default function StoredValuePage() {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Stethoscope className="h-4 w-4 text-primary" />
+                操作医生
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">门店</label>
+                <Select
+                  value={clinicId}
+                  onValueChange={(v) => {
+                    setClinicId(v);
+                    setStaffId("");
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="请选择门店" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clinics.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                          {c.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">医生</label>
+                <Select value={staffId} onValueChange={setStaffId} disabled={!clinicId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="请选择操作医生" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredStaff.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        <div className="flex items-center gap-2">
+                          <User className="h-3.5 w-3.5 text-muted-foreground" />
+                          {s.name}
+                          {s.title ? ` (${s.title})` : ""}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardContent>
           </Card>
 

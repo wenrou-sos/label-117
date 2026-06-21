@@ -305,7 +305,7 @@ export default function MemberDetailPage() {
       items.push({
         id: `co-${co.id}`,
         type: "consumable",
-        timestamp: `${co.consumeDate}T09:00:00.000Z`,
+        timestamp: co.createdAt,
         title: "耗材消耗",
         description: itemsStr,
         amount: totalAmount,
