@@ -31,6 +31,8 @@ const typeLabelMap: Record<NotificationType, string> = {
   appointment_confirmed: "预约确认",
   appointment_cancelled: "预约取消",
   appointment_completed: "预约完成",
+  appointment_in_progress: "诊疗中",
+  appointment_no_show: "患者未到",
   appointment_reminder: "预约提醒",
   settlement_new: "结算通知",
   system: "系统通知",
@@ -41,6 +43,8 @@ const typeIconMap: Record<NotificationType, React.ReactNode> = {
   appointment_confirmed: <CheckCheck className="h-5 w-5" />,
   appointment_cancelled: <Scissors className="h-5 w-5" />,
   appointment_completed: <CheckCheck className="h-5 w-5" />,
+  appointment_in_progress: <Scissors className="h-5 w-5" />,
+  appointment_no_show: <AlertCircle className="h-5 w-5" />,
   appointment_reminder: <AlertCircle className="h-5 w-5" />,
   settlement_new: <CreditCard className="h-5 w-5" />,
   system: <Bell className="h-5 w-5" />,
@@ -51,6 +55,8 @@ const typeColorMap: Record<NotificationType, string> = {
   appointment_confirmed: "text-green-600 bg-green-50 border-green-200",
   appointment_cancelled: "text-destructive bg-destructive/10 border-destructive/20",
   appointment_completed: "text-green-600 bg-green-50 border-green-200",
+  appointment_in_progress: "text-indigo-600 bg-indigo-50 border-indigo-200",
+  appointment_no_show: "text-red-600 bg-red-50 border-red-200",
   appointment_reminder: "text-amber-600 bg-amber-50 border-amber-200",
   settlement_new: "text-purple-600 bg-purple-50 border-purple-200",
   system: "text-muted-foreground bg-muted border-border",
@@ -69,22 +75,44 @@ const priorityVariantMap: Record<NotificationPriority, "default" | "secondary" |
 };
 
 export default function NotificationsPage() {
-  const { notifications, markNotificationRead, markAllNotificationsRead, clearAllNotifications } =
-    useAppStore();
+  const {
+    notifications,
+    markNotificationRead,
+    markAllNotificationsRead,
+    clearAllNotifications,
+    selectedClinicId,
+    currentUserId,
+  } = useAppStore();
 
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [readFilter, setReadFilter] = useState<string>("all");
+  const [scopeFilter, setScopeFilter] = useState<string>("mine");
 
   const filteredNotifications = useMemo(() => {
     return notifications.filter((n) => {
+      if (scopeFilter === "mine") {
+        if (n.staffId && currentUserId && n.staffId !== currentUserId) return false;
+        if (selectedClinicId && n.clinicId && n.clinicId !== selectedClinicId) return false;
+      }
+      if (scopeFilter === "clinic" && selectedClinicId && n.clinicId && n.clinicId !== selectedClinicId) {
+        return false;
+      }
       if (typeFilter !== "all" && n.type !== typeFilter) return false;
       if (readFilter === "unread" && n.read) return false;
       if (readFilter === "read" && !n.read) return false;
       return true;
     });
-  }, [notifications, typeFilter, readFilter]);
+  }, [notifications, typeFilter, readFilter, scopeFilter, selectedClinicId, currentUserId]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const visibleNotificationsAll = useMemo(() => {
+    return notifications.filter((n) => {
+      if (n.staffId && currentUserId && n.staffId !== currentUserId) return false;
+      if (selectedClinicId && n.clinicId && n.clinicId !== selectedClinicId) return false;
+      return true;
+    });
+  }, [notifications, selectedClinicId, currentUserId]);
+
+  const unreadCount = visibleNotificationsAll.filter((n) => !n.read).length;
 
   const handleClearAll = () => {
     if (confirm("确定要清空所有通知吗？此操作不可恢复。")) {
@@ -150,6 +178,19 @@ export default function NotificationsPage() {
       <Card className="mb-4">
         <CardContent className="p-4 flex flex-wrap items-center gap-3">
           <div className="w-40">
+            <Select value={scopeFilter} onValueChange={setScopeFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="通知范围" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="mine">我的通知</SelectItem>
+                <SelectItem value="clinic">本门店</SelectItem>
+                <SelectItem value="all">全部通知</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="w-40">
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="全部类型" />
@@ -178,13 +219,14 @@ export default function NotificationsPage() {
             </Select>
           </div>
 
-          {(typeFilter !== "all" || readFilter !== "all") && (
+          {(typeFilter !== "all" || readFilter !== "all" || scopeFilter !== "mine") && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => {
                 setTypeFilter("all");
                 setReadFilter("all");
+                setScopeFilter("mine");
               }}
             >
               重置筛选

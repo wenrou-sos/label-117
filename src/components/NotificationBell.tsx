@@ -13,6 +13,8 @@ const typeIconMap: Record<NotificationType, React.ReactNode> = {
   appointment_confirmed: <CheckCheck className="h-4 w-4" />,
   appointment_cancelled: <Scissors className="h-4 w-4" />,
   appointment_completed: <CheckCheck className="h-4 w-4" />,
+  appointment_in_progress: <Scissors className="h-4 w-4" />,
+  appointment_no_show: <AlertCircle className="h-4 w-4" />,
   appointment_reminder: <AlertCircle className="h-4 w-4" />,
   settlement_new: <CreditCard className="h-4 w-4" />,
   system: <Bell className="h-4 w-4" />,
@@ -23,6 +25,8 @@ const typeColorMap: Record<NotificationType, string> = {
   appointment_confirmed: "text-green-600 bg-green-50",
   appointment_cancelled: "text-destructive bg-destructive/10",
   appointment_completed: "text-green-600 bg-green-50",
+  appointment_in_progress: "text-indigo-600 bg-indigo-50",
+  appointment_no_show: "text-red-600 bg-red-50",
   appointment_reminder: "text-amber-600 bg-amber-50",
   settlement_new: "text-purple-600 bg-purple-50",
   system: "text-muted-foreground bg-muted",
@@ -30,6 +34,13 @@ const typeColorMap: Record<NotificationType, string> = {
 
 interface NotificationBellProps {
   className?: string;
+}
+
+function getLocalDateStr(d: Date) {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function NotificationBell({ className }: NotificationBellProps) {
@@ -43,12 +54,20 @@ export function NotificationBell({ className }: NotificationBellProps) {
     markNotificationRead,
     markAllNotificationsRead,
     addNotification,
+    selectedClinicId,
+    currentUserId,
   } = useAppStore();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const remindedRef = useRef<Set<string>>(new Set());
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-  const recentNotifications = notifications.slice(0, 5);
+  const visibleNotifications = notifications.filter((n) => {
+    if (n.staffId && currentUserId && n.staffId !== currentUserId) return false;
+    if (selectedClinicId && n.clinicId && n.clinicId !== selectedClinicId) return false;
+    return true;
+  });
+
+  const unreadCount = visibleNotifications.filter((n) => !n.read).length;
+  const recentNotifications = visibleNotifications.slice(0, 5);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -63,7 +82,7 @@ export function NotificationBell({ className }: NotificationBellProps) {
   useEffect(() => {
     const checkUpcomingAppointments = () => {
       const now = new Date();
-      const today = now.toISOString().split("T")[0];
+      const today = getLocalDateStr(now);
       const reminderWindow = 30 * 60 * 1000;
 
       appointments.forEach((apt) => {

@@ -7,6 +7,8 @@ export type NotificationType =
   | "appointment_confirmed"
   | "appointment_cancelled"
   | "appointment_completed"
+  | "appointment_in_progress"
+  | "appointment_no_show"
   | "appointment_reminder"
   | "settlement_new"
   | "system";

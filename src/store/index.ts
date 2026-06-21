@@ -62,9 +62,11 @@ interface AppState {
   settlements: Settlement[];
   selectedClinicId: string | null;
   selectedDate: string;
+  currentUserId: string | null;
 
   setSelectedClinicId: (id: string | null) => void;
   setSelectedDate: (date: string) => void;
+  setCurrentUserId: (id: string | null) => void;
 
   addAppointment: (data: Omit<Appointment, "id" | "createdAt">) => void;
   updateAppointmentStatus: (id: string, status: AppointmentStatus) => void;
@@ -131,10 +133,12 @@ export const useAppStore = create<AppState>((set) => {
     settlements: [],
     notifications: [],
     selectedClinicId: null,
-    selectedDate: new Date().toISOString().split("T")[0],
+    selectedDate: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split("T")[0],
+    currentUserId: "staff-001",
 
     setSelectedClinicId: (id) => set({ selectedClinicId: id }),
     setSelectedDate: (date) => set({ selectedDate: date }),
+    setCurrentUserId: (id) => set({ currentUserId: id }),
 
     addAppointment: (data) =>
       set((state) => {
@@ -194,13 +198,13 @@ export const useAppStore = create<AppState>((set) => {
             break;
           case "no_show":
             title = "患者未到诊";
-            type = "appointment_cancelled";
+            type = "appointment_no_show";
             priority = "high";
             break;
           case "in_progress":
             title = "诊疗进行中";
-            type = "appointment_confirmed";
-            priority = "low";
+            type = "appointment_in_progress";
+            priority = "medium";
             break;
         }
         if (!title) {

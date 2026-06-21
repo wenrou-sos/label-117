@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select"
+import { useAppStore } from "@/store"
 
 interface BreadcrumbItem {
   label: string
@@ -30,20 +31,21 @@ interface TopbarProps extends React.HTMLAttributes<HTMLDivElement> {
   onMobileMenuClick?: () => void
 }
 
-const stores = [
-  { value: "hq", label: "总部" },
-  { value: "shanghai-pudong", label: "上海浦东店" },
-  { value: "shanghai-xuhui", label: "上海徐汇店" },
-  { value: "beijing-chaoyang", label: "北京朝阳店" },
-]
-
 export function Topbar({
   className,
   breadcrumbs = [{ label: "工作台" }],
   onMobileMenuClick,
 }: TopbarProps) {
-  const [selectedStore, setSelectedStore] = React.useState(stores[0].value)
+  const { clinics, selectedClinicId, setSelectedClinicId, staff, currentUserId, setCurrentUserId } = useAppStore()
   const [showUserMenu, setShowUserMenu] = React.useState(false)
+
+  const currentUser = staff.find((s) => s.id === currentUserId)
+  const handleClinicChange = (value: string) => {
+    setSelectedClinicId(value === "__all__" ? null : value)
+  }
+  const handleUserChange = (value: string) => {
+    setCurrentUserId(value)
+  }
 
   return (
     <header
@@ -80,7 +82,7 @@ export function Topbar({
       </nav>
 
       <div className="flex items-center gap-2">
-        <Select value={selectedStore} onValueChange={setSelectedStore}>
+        <Select value={selectedClinicId ?? "__all__"} onValueChange={handleClinicChange}>
           <SelectTrigger className="w-36 md:w-48">
             <div className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
@@ -88,9 +90,26 @@ export function Topbar({
             </div>
           </SelectTrigger>
           <SelectContent>
-            {stores.map((store) => (
-              <SelectItem key={store.value} value={store.value}>
-                {store.label}
+            <SelectItem value="__all__">全部门店</SelectItem>
+            {clinics.map((clinic) => (
+              <SelectItem key={clinic.id} value={clinic.id}>
+                {clinic.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={currentUserId ?? ""} onValueChange={handleUserChange}>
+          <SelectTrigger className="w-36 md:w-44">
+            <div className="flex items-center gap-2">
+              <User className="h-4 w-4" />
+              <SelectValue placeholder="切换身份" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            {staff.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}（{s.title || s.role}）
               </SelectItem>
             ))}
           </SelectContent>
@@ -113,9 +132,12 @@ export function Topbar({
           {showUserMenu && (
             <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-md">
               <div className="border-b p-3">
-                <p className="text-sm font-medium">管理员</p>
+                <p className="text-sm font-medium">{currentUser?.name || "管理员"}</p>
                 <p className="text-xs text-muted-foreground">
-                  admin@yuechi.com
+                  {currentUser?.email || "admin@yuechi.com"}
+                </p>
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  {currentUser?.title || "系统管理员"}
                 </p>
               </div>
               <div className="p-1">
