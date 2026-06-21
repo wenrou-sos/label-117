@@ -36,6 +36,7 @@ import type {
   PointsTx,
   StoredValueTx,
   AppointmentStatus,
+  Settlement,
 } from "@/types";
 
 interface AppState {
@@ -55,6 +56,7 @@ interface AppState {
   installmentPlans: InstallmentPlan[];
   pointsTxs: PointsTx[];
   storedValueTxs: StoredValueTx[];
+  settlements: Settlement[];
   selectedClinicId: string | null;
   selectedDate: string;
 
@@ -85,6 +87,7 @@ interface AppState {
   updateMember: (id: string, data: Partial<Member>) => void;
   addPointsTx: (data: Omit<PointsTx, "id" | "createdAt">) => void;
   addStoredValueTx: (data: Omit<StoredValueTx, "id" | "createdAt">) => void;
+  addSettlement: (data: Omit<Settlement, "id" | "createdAt" | "status" | "amountPaid">) => void;
   addInstallmentPlan: (data: Omit<InstallmentPlan, "id" | "createdAt">) => void;
   updateInstallmentPlan: (id: string, data: Partial<InstallmentPlan>) => void;
 
@@ -116,6 +119,7 @@ export const useAppStore = create<AppState>((set) => {
     installmentPlans: mockInstallmentPlans,
     pointsTxs: mockPointsTxs,
     storedValueTxs: mockStoredValueTxs,
+    settlements: [],
     selectedClinicId: null,
     selectedDate: new Date().toISOString().split("T")[0],
 
@@ -369,6 +373,93 @@ export const useAppStore = create<AppState>((set) => {
         return {
           storedValueTxs: [...state.storedValueTxs, newTx],
           members: updatedMembers,
+        };
+      }),
+    addSettlement: (data) =>
+      set((state) => {
+        const amountPaid =
+          data.cashAmount +
+          data.cardAmount +
+          data.wechatAlipayAmount +
+          data.storedValueUsed +
+          data.pointsDeduction +
+          data.installmentAmount;
+
+        const newSettlement: Settlement = {
+          ...data,
+          id: generateId("set-"),
+          amountPaid,
+          status: amountPaid >= data.totalAmount - data.discountAmount ? "settled" : "partial",
+          createdAt: new Date().toISOString(),
+        };
+
+        let updatedMembers = [...state.members];
+        const newStoredValueTxs = [...state.storedValueTxs];
+        const newPointsTxs = [...state.pointsTxs];
+        const newInstallmentPlans = [...state.installmentPlans];
+
+        if (data.memberId && data.storedValueUsed > 0) {
+          updatedMembers = updatedMembers.map((m) => {
+            if (m.id !== data.memberId) return m;
+            return { ...m, balance: Math.max(0, m.balance - data.storedValueUsed) };
+          });
+          newStoredValueTxs.push({
+            id: generateId("sv-"),
+            memberId: data.memberId,
+            amount: data.storedValueUsed,
+            type: "consume",
+            description: `消费扣款-${state.treatmentTypes.find((t) => t.id === state.appointments.find((a) => a.id === data.appointmentId)?.treatmentTypeId)?.name || "诊疗项目"}`,
+            referenceId: data.appointmentId,
+            staffId: data.operatorId,
+            createdAt: new Date().toISOString(),
+          });
+        }
+
+        if (data.memberId && data.pointsUsed > 0) {
+          updatedMembers = updatedMembers.map((m) => {
+            if (m.id !== data.memberId) return m;
+            return { ...m, points: Math.max(0, m.points - data.pointsUsed) };
+          });
+          newPointsTxs.push({
+            id: generateId("pt-"),
+            memberId: data.memberId,
+            type: "spend",
+            points: data.pointsUsed,
+            description: `积分抵扣诊疗费用`,
+            referenceId: data.appointmentId,
+            staffId: data.operatorId,
+            createdAt: new Date().toISOString(),
+          });
+        }
+
+        if (data.memberId && data.installmentAmount > 0 && data.primaryPaymentMethod === "installment") {
+          const apt = state.appointments.find((a) => a.id === data.appointmentId);
+          const newInstallment: InstallmentPlan = {
+            id: generateId("ip-"),
+            memberId: data.memberId,
+            appointmentId: data.appointmentId,
+            totalAmount: data.installmentAmount,
+            periods: 6,
+            periodAmount: Math.ceil((data.installmentAmount / 6) * 100) / 100,
+            paidPeriods: 0,
+            status: "active",
+            startDate: new Date().toISOString().split("T")[0],
+            nextDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+            description: apt
+              ? `${state.treatmentTypes.find((t) => t.id === apt.treatmentTypeId)?.name || "诊疗项目"}分期`
+              : "诊疗分期",
+            createdAt: new Date().toISOString(),
+          };
+          newInstallmentPlans.push(newInstallment);
+          newSettlement.installmentId = newInstallment.id;
+        }
+
+        return {
+          settlements: [...state.settlements, newSettlement],
+          members: updatedMembers,
+          storedValueTxs: newStoredValueTxs,
+          pointsTxs: newPointsTxs,
+          installmentPlans: newInstallmentPlans,
         };
       }),
     addInstallmentPlan: (data) =>

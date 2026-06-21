@@ -8,6 +8,10 @@ export type InventoryCategory = "implant" | "orthodontics" | "anesthesia" | "sut
 
 export type PointsTxType = "earn" | "spend" | "expire";
 
+export type PaymentMethod = "cash" | "card" | "wechat_alipay" | "stored_value" | "points" | "installment";
+
+export type SettlementStatus = "unsettled" | "settled" | "partial";
+
 export type InstallmentStatus = "active" | "completed" | "overdue";
 
 export type MemberLevel = "normal" | "silver" | "gold" | "platinum";
@@ -224,5 +228,29 @@ export interface StoredValueTx {
   description: string;
   referenceId?: string;
   staffId?: string;
+  createdAt: string;
+}
+
+export interface Settlement {
+  id: string;
+  appointmentId: string;
+  patientId: string;
+  memberId?: string;
+  totalAmount: number;
+  discountAmount: number;
+  pointsUsed: number;
+  pointsDeduction: number;
+  storedValueUsed: number;
+  installmentId?: string;
+  installmentAmount: number;
+  primaryPaymentMethod: PaymentMethod;
+  cashAmount: number;
+  cardAmount: number;
+  wechatAlipayAmount: number;
+  amountPaid: number;
+  status: SettlementStatus;
+  operatorId?: string;
+  clinicId: string;
+  remark?: string;
   createdAt: string;
 }

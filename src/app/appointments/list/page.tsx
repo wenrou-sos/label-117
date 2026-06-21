@@ -30,9 +30,36 @@ import {
   XCircle,
   Plus,
   LayoutGrid,
+  Receipt,
+  CheckCircle,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
-import type { AppointmentStatus } from "@/types";
+import type { AppointmentStatus, SettlementStatus } from "@/types";
+import { SettlementModal } from "@/components/SettlementModal";
+
+type EnrichedAppointment = {
+  id: string;
+  patientId: string;
+  staffId: string;
+  clinicId: string;
+  treatmentTypeId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  duration: number;
+  status: AppointmentStatus;
+  createdAt: string;
+  patientName: string;
+  patientPhone: string;
+  staffName: string;
+  clinicName: string;
+  treatmentName: string;
+  treatmentPrice: number;
+  treatmentColor: string;
+  settlementStatus: SettlementStatus;
+  totalPaid: number;
+};
 
 const statusMap: Record<AppointmentStatus, { label: string; variant: "default" | "success" | "warning" | "secondary" | "destructive" }> = {
   pending: { label: "待确认", variant: "warning" },
@@ -44,12 +71,15 @@ const statusMap: Record<AppointmentStatus, { label: string; variant: "default" |
 };
 
 export default function AppointmentsListPage() {
-  const { appointments, clinics, patients, staff, treatmentTypes, updateAppointmentStatus } = useAppStore();
+  const { appointments, clinics, patients, staff, treatmentTypes, settlements, updateAppointmentStatus } = useAppStore();
 
   const [searchKeyword, setSearchKeyword] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [settlementFilter, setSettlementFilter] = useState<string>("all");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [settlementModalOpen, setSettlementModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] = useState<EnrichedAppointment | null>(null);
 
   const enrichedAppointments = useMemo(() => {
     return appointments
@@ -58,6 +88,12 @@ export default function AppointmentsListPage() {
         const doctor = staff.find((s) => s.id === apt.staffId);
         const clinic = clinics.find((c) => c.id === apt.clinicId);
         const treatment = treatmentTypes.find((t) => t.id === apt.treatmentTypeId);
+        const aptSettlements = settlements.filter((s) => s.appointmentId === apt.id);
+        const totalPaid = aptSettlements.reduce((sum, s) => sum + s.amountPaid, 0);
+        let settlementStatus: SettlementStatus = "unsettled";
+        if (aptSettlements.length > 0) {
+          settlementStatus = totalPaid >= (treatment?.price || 0) ? "settled" : "partial";
+        }
         return {
           ...apt,
           patientName: patient?.name || "未知患者",
@@ -67,13 +103,15 @@ export default function AppointmentsListPage() {
           treatmentName: treatment?.name || "未知项目",
           treatmentPrice: treatment?.price || 0,
           treatmentColor: treatment?.color || "#64748B",
+          settlementStatus,
+          totalPaid,
         };
       })
       .sort((a, b) => {
         if (a.date !== b.date) return b.date.localeCompare(a.date);
         return a.startTime.localeCompare(b.startTime);
       });
-  }, [appointments, patients, staff, clinics, treatmentTypes]);
+  }, [appointments, patients, staff, clinics, treatmentTypes, settlements]);
 
   const filteredAppointments = useMemo(() => {
     return enrichedAppointments.filter((apt) => {
@@ -85,16 +123,22 @@ export default function AppointmentsListPage() {
         if (!matchName && !matchPhone && !matchTreatment) return false;
       }
       if (statusFilter !== "all" && apt.status !== statusFilter) return false;
+      if (settlementFilter !== "all" && apt.settlementStatus !== settlementFilter) return false;
       if (startDate && apt.date < startDate) return false;
       if (endDate && apt.date > endDate) return false;
       return true;
     });
-  }, [enrichedAppointments, searchKeyword, statusFilter, startDate, endDate]);
+  }, [enrichedAppointments, searchKeyword, statusFilter, settlementFilter, startDate, endDate]);
 
   const handleCancel = (aptId: string, patientName: string) => {
     if (confirm(`确定要取消 ${patientName} 的预约吗？`)) {
       updateAppointmentStatus(aptId, "cancelled");
     }
+  };
+
+  const handleSettlement = (apt: EnrichedAppointment) => {
+    setSelectedAppointment(apt);
+    setSettlementModalOpen(true);
   };
 
   return (
@@ -145,6 +189,20 @@ export default function AppointmentsListPage() {
             </Select>
           </div>
 
+          <div className="w-40">
+            <Select value={settlementFilter} onValueChange={setSettlementFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="全部结算" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部结算</SelectItem>
+                <SelectItem value="unsettled">未结算</SelectItem>
+                <SelectItem value="partial">部分结算</SelectItem>
+                <SelectItem value="settled">已结算</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <Input
@@ -189,7 +247,8 @@ export default function AppointmentsListPage() {
                 <TableHead>医生</TableHead>
                 <TableHead>门店</TableHead>
                 <TableHead>时间</TableHead>
-                <TableHead>状态</TableHead>
+                <TableHead>预约状态</TableHead>
+                <TableHead>结算状态</TableHead>
                 <TableHead>金额</TableHead>
                 <TableHead className="text-right">操作</TableHead>
               </TableRow>
@@ -197,13 +256,19 @@ export default function AppointmentsListPage() {
             <TableBody>
               {filteredAppointments.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
                     暂无预约数据
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredAppointments.map((apt) => {
                   const statusInfo = statusMap[apt.status];
+                  const settlementInfo = {
+                    unsettled: { label: "未结算", variant: "warning" as const, icon: Clock },
+                    partial: { label: "部分结算", variant: "secondary" as const, icon: Clock },
+                    settled: { label: "已结算", variant: "success" as const, icon: CheckCircle },
+                  }[apt.settlementStatus as "unsettled" | "partial" | "settled"];
+                  const SettlementIcon = settlementInfo.icon;
                   return (
                     <TableRow key={apt.id}>
                       <TableCell>
@@ -230,9 +295,24 @@ export default function AppointmentsListPage() {
                       <TableCell>
                         <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>
                       </TableCell>
+                      <TableCell>
+                        <Badge variant={settlementInfo.variant} className="gap-1">
+                          <SettlementIcon className="h-3 w-3" />
+                          {settlementInfo.label}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{formatCurrency(apt.treatmentPrice)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title="结算"
+                            onClick={() => handleSettlement(apt)}
+                            className="text-primary hover:text-primary hover:bg-primary/10"
+                          >
+                            <Receipt className="h-4 w-4" />
+                          </Button>
                           <Button variant="ghost" size="icon" title="查看">
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -264,6 +344,12 @@ export default function AppointmentsListPage() {
       <div className="mt-3 text-sm text-muted-foreground">
         共 {filteredAppointments.length} 条预约记录
       </div>
+
+      <SettlementModal
+        open={settlementModalOpen}
+        onOpenChange={setSettlementModalOpen}
+        appointment={selectedAppointment}
+      />
     </div>
   );
 }
