@@ -78,37 +78,24 @@ const priorityVariantMap: Record<NotificationPriority, "default" | "secondary" |
 export default function NotificationsPage() {
   const {
     notifications,
-    staff,
     markNotificationRead,
     markNotificationsReadByIds,
     clearNotificationsByIds,
+    selectedClinicId,
     currentUserId,
   } = useAppStore();
 
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [readFilter, setReadFilter] = useState<string>("all");
   const [scopeFilter, setScopeFilter] = useState<string>("mine");
-  const currentUser = useMemo(
-    () => staff.find((member) => member.id === currentUserId),
-    [staff, currentUserId]
-  );
-  const currentUserClinicId = currentUser?.clinicId;
-
-  const allowedNotifications = useMemo(() => {
-    return notifications.filter((n) => {
-      if (n.staffId) {
-        return !!currentUserId && n.staffId === currentUserId;
-      }
-      if (n.clinicId) {
-        return !!currentUserClinicId && n.clinicId === currentUserClinicId;
-      }
-      return true;
-    });
-  }, [notifications, currentUserId, currentUserClinicId]);
 
   const filteredNotifications = useMemo(() => {
-    return allowedNotifications.filter((n) => {
-      if (scopeFilter === "clinic" && n.staffId) {
+    return notifications.filter((n) => {
+      if (scopeFilter === "mine") {
+        if (n.staffId && currentUserId && n.staffId !== currentUserId) return false;
+        if (selectedClinicId && n.clinicId && n.clinicId !== selectedClinicId) return false;
+      }
+      if (scopeFilter === "clinic" && selectedClinicId && n.clinicId && n.clinicId !== selectedClinicId) {
         return false;
       }
       if (typeFilter !== "all" && n.type !== typeFilter) return false;
@@ -116,9 +103,17 @@ export default function NotificationsPage() {
       if (readFilter === "read" && !n.read) return false;
       return true;
     });
-  }, [allowedNotifications, typeFilter, readFilter, scopeFilter]);
+  }, [notifications, typeFilter, readFilter, scopeFilter, selectedClinicId, currentUserId]);
 
-  const unreadCount = allowedNotifications.filter((n) => !n.read).length;
+  const visibleNotificationsAll = useMemo(() => {
+    return notifications.filter((n) => {
+      if (n.staffId && currentUserId && n.staffId !== currentUserId) return false;
+      if (selectedClinicId && n.clinicId && n.clinicId !== selectedClinicId) return false;
+      return true;
+    });
+  }, [notifications, selectedClinicId, currentUserId]);
+
+  const unreadCount = visibleNotificationsAll.filter((n) => !n.read).length;
 
   const visibleIds = filteredNotifications.map((n) => n.id);
   const visibleUnreadCount = filteredNotifications.filter((n) => !n.read).length;

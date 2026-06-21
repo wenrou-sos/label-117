@@ -366,12 +366,18 @@ export const inventoryItems: InventoryItem[] = [
 ];
 
 export const inventoryBatches: InventoryBatch[] = [
-  { id: "batch-001", itemId: "inv-001", batchNo: "NB202601001", quantity: 20, expireDate: "2028-01-15", supplier: "诺贝尔官方授权经销商", clinicId: "clinic-001", createdAt: "2026-01-15T00:00:00.000Z" },
-  { id: "batch-002", itemId: "inv-003", batchNo: "STM202602015", quantity: 15, expireDate: "2028-02-20", supplier: "士卓曼中国区代理", clinicId: "clinic-001", createdAt: "2026-02-20T00:00:00.000Z" },
-  { id: "batch-003", itemId: "inv-005", batchNo: "OST202603088", quantity: 30, expireDate: "2028-03-25", supplier: "奥齿泰上海办事处", clinicId: "clinic-002", createdAt: "2026-03-25T00:00:00.000Z" },
-  { id: "batch-004", itemId: "inv-010", batchNo: "BL202604120", quantity: 500, expireDate: "2027-04-10", supplier: "碧兰麻厂家直供", clinicId: "clinic-001", createdAt: "2026-04-10T00:00:00.000Z" },
-  { id: "batch-005", itemId: "inv-014", batchNo: "3M202605033", quantity: 15, expireDate: "2027-05-18", supplier: "3M牙科事业部", clinicId: "clinic-003", createdAt: "2026-05-18T00:00:00.000Z" },
-  { id: "batch-006", itemId: "inv-009", batchNo: "SDA202606001", quantity: 15, expireDate: "2027-06-05", supplier: "时代天使厂商", clinicId: "clinic-001", createdAt: "2026-06-05T00:00:00.000Z" },
+  { id: "batch-001", itemId: "inv-001", batchNo: "NB202601001", quantity: 20, remainingQuantity: 18, expireDate: "2028-01-15", supplier: "诺贝尔官方授权经销商", clinicId: "clinic-001", createdAt: "2026-01-15T00:00:00.000Z" },
+  { id: "batch-002", itemId: "inv-003", batchNo: "STM202602015", quantity: 15, remainingQuantity: 13, expireDate: "2028-02-20", supplier: "士卓曼中国区代理", clinicId: "clinic-001", createdAt: "2026-02-20T00:00:00.000Z" },
+  { id: "batch-003", itemId: "inv-005", batchNo: "OST202603088", quantity: 30, remainingQuantity: 28, expireDate: "2028-03-25", supplier: "奥齿泰上海办事处", clinicId: "clinic-002", createdAt: "2026-03-25T00:00:00.000Z" },
+  { id: "batch-004", itemId: "inv-010", batchNo: "BL202604120", quantity: 500, remainingQuantity: 320, expireDate: "2027-04-10", supplier: "碧兰麻厂家直供", clinicId: "clinic-001", createdAt: "2026-04-10T00:00:00.000Z" },
+  { id: "batch-005", itemId: "inv-014", batchNo: "3M202605033", quantity: 15, remainingQuantity: 10, expireDate: "2027-05-18", supplier: "3M牙科事业部", clinicId: "clinic-003", createdAt: "2026-05-18T00:00:00.000Z" },
+  { id: "batch-006", itemId: "inv-009", batchNo: "SDA202606001", quantity: 15, remainingQuantity: 8, expireDate: "2027-06-05", supplier: "时代天使厂商", clinicId: "clinic-001", createdAt: "2026-06-05T00:00:00.000Z" },
+  { id: "batch-007", itemId: "inv-010", batchNo: "BL202405015", quantity: 100, remainingQuantity: 25, expireDate: "2026-05-20", supplier: "碧兰麻厂家直供", clinicId: "clinic-001", createdAt: "2024-05-15T00:00:00.000Z" },
+  { id: "batch-008", itemId: "inv-012", batchNo: "HS202408022", quantity: 50, remainingQuantity: 12, expireDate: "2026-06-28", supplier: "上海华寿医疗器械", clinicId: "clinic-001", createdAt: "2024-08-10T00:00:00.000Z" },
+  { id: "batch-009", itemId: "inv-011", batchNo: "KQ202503045", quantity: 200, remainingQuantity: 85, expireDate: "2026-06-30", supplier: "上海康桥齿科", clinicId: "clinic-002", createdAt: "2025-03-18T00:00:00.000Z" },
+  { id: "batch-010", itemId: "inv-013", batchNo: "CR202505078", quantity: 30, remainingQuantity: 22, expireDate: "2026-08-15", supplier: "美国登士柏西诺德", clinicId: "clinic-001", createdAt: "2025-05-22T00:00:00.000Z" },
+  { id: "batch-011", itemId: "inv-014", batchNo: "3M202504018", quantity: 20, remainingQuantity: 15, expireDate: "2026-09-10", supplier: "3M牙科事业部", clinicId: "clinic-002", createdAt: "2025-04-12T00:00:00.000Z" },
+  { id: "batch-012", itemId: "inv-008", batchNo: "GC202503025", quantity: 40, remainingQuantity: 6, expireDate: "2026-05-15", supplier: "GC富士牙科", clinicId: "clinic-003", createdAt: "2025-03-20T00:00:00.000Z" },
 ];
 
 export const members: Member[] = [

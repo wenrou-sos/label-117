@@ -327,6 +327,7 @@ export const useAppStore = create<AppState>((set) => {
           itemId: item.itemId,
           batchNo: item.batchNo,
           quantity: item.quantity,
+          remainingQuantity: item.quantity,
           expireDate: item.expireDate,
           supplier: data.supplier,
           clinicId: data.clinicId,
@@ -419,9 +420,18 @@ export const useAppStore = create<AppState>((set) => {
             });
           }
         });
+        const updatedBatches = state.inventoryBatches.map((batch) => {
+          const orderItem = data.items.find((oi) => oi.batchId === batch.id);
+          if (!orderItem) return batch;
+          return {
+            ...batch,
+            remainingQuantity: Math.max(0, batch.remainingQuantity - orderItem.quantity),
+          };
+        });
         return {
           consumeOrders: [...state.consumeOrders, newOrder],
           inventoryItems: updatedItems,
+          inventoryBatches: updatedBatches,
           traceCodes: updatedTraceCodes,
           traceRecords: [...state.traceRecords, ...newTraceRecords],
         };

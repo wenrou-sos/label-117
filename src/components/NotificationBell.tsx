@@ -54,20 +54,15 @@ export function NotificationBell({ className }: NotificationBellProps) {
     markNotificationRead,
     markNotificationsReadByIds,
     addNotification,
+    selectedClinicId,
     currentUserId,
   } = useAppStore();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const remindedRef = useRef<Set<string>>(new Set());
-  const currentUser = staff.find((member) => member.id === currentUserId);
-  const currentUserClinicId = currentUser?.clinicId;
 
   const visibleNotifications = notifications.filter((n) => {
-    if (n.staffId) {
-      return !!currentUserId && n.staffId === currentUserId;
-    }
-    if (n.clinicId) {
-      return !!currentUserClinicId && n.clinicId === currentUserClinicId;
-    }
+    if (n.staffId && currentUserId && n.staffId !== currentUserId) return false;
+    if (selectedClinicId && n.clinicId && n.clinicId !== selectedClinicId) return false;
     return true;
   });
 

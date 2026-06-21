@@ -124,6 +124,7 @@ export interface InventoryBatch {
   itemId: string;
   batchNo: string;
   quantity: number;
+  remainingQuantity: number;
   expireDate?: string;
   supplier: string;
   clinicId: string;
